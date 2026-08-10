@@ -1,0 +1,194 @@
+import { randomUUID } from "node:crypto";
+import request from "supertest";
+import type { Express } from "express";
+import { hashPassword } from "../src/lib/bcrypt.js";
+import { signAccessToken } from "../src/lib/jwt.js";
+import { prisma } from "../src/lib/prisma.js";
+
+export const testPassword = "SecurePass1";
+
+export interface TestUser {
+  id: string;
+  name: string;
+  email: string;
+  accessToken: string;
+}
+
+export async function resetBizTestData(): Promise<void> {
+  const testUsers = await prisma.user.findMany({
+    where: {
+      email: {
+        endsWith: "@biz-test.local",
+      },
+    },
+    select: { id: true },
+  });
+
+  const testUserIds = testUsers.map((user) => user.id);
+
+  if (testUserIds.length === 0) {
+    return;
+  }
+
+  const testBusinesses = await prisma.businessMember.findMany({
+    where: {
+      userId: {
+        in: testUserIds,
+      },
+    },
+    select: { businessId: true },
+    distinct: ["businessId"],
+  });
+
+  const testBusinessIds = testBusinesses.map((entry) => entry.businessId);
+
+  await prisma.refreshToken.deleteMany({
+    where: {
+      userId: {
+        in: testUserIds,
+      },
+    },
+  });
+
+  if (testBusinessIds.length > 0) {
+    await prisma.businessMember.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.business.deleteMany({
+      where: {
+        id: {
+          in: testBusinessIds,
+        },
+      },
+    });
+  }
+
+  await prisma.user.deleteMany({
+    where: {
+      id: {
+        in: testUserIds,
+      },
+    },
+  });
+}
+
+export async function createTestUser(
+  app: Express,
+  label: string,
+): Promise<TestUser> {
+  const email = `${label}-${randomUUID()}@biz-test.local`;
+  const name = `${label} User`;
+
+  await request(app).post("/api/v1/auth/register").send({
+    name,
+    email,
+    password: testPassword,
+  });
+
+  const loginResponse = await request(app).post("/api/v1/auth/login").send({
+    email,
+    password: testPassword,
+  });
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { email },
+  });
+
+  return {
+    id: user.id,
+    name,
+    email,
+    accessToken: loginResponse.body.data.accessToken,
+  };
+}
+
+export async function createBusiness(
+  app: Express,
+  accessToken: string,
+  name: string,
+) {
+  return request(app)
+    .post("/api/v1/businesses")
+    .set("Authorization", `Bearer ${accessToken}`)
+    .send({ name });
+}
+
+export async function addMemberDirect(
+  businessId: string,
+  user: TestUser,
+  role: "owner" | "admin" | "staff" | "cashier",
+): Promise<void> {
+  await prisma.businessMember.create({
+    data: {
+      businessId,
+      userId: user.id,
+      role,
+    },
+  });
+}
+
+export async function createMemberUser(
+  app: Express,
+  label: string,
+): Promise<TestUser> {
+  return createTestUser(app, label);
+}
+
+export function authHeader(accessToken: string): { Authorization: string } {
+  return { Authorization: `Bearer ${accessToken}` };
+}
+
+export const sampleProduct = {
+  name: "Cement",
+  description: "50kg bag",
+  sku: "CEM-001",
+  barcode: "1234567890123",
+  unit: "bag",
+  costPrice: 105,
+  sellingPrice: 120,
+};
+
+export async function setupOwnerBusiness(app: Express, label: string) {
+  const owner = await createTestUser(app, label);
+  const businessResponse = await createBusiness(
+    app,
+    owner.accessToken,
+    `${label} Business`,
+  );
+
+  return {
+    owner,
+    businessId: businessResponse.body.data.business.id as string,
+  };
+}
+
+export function productPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/products${suffix}`;
+}
+
+export async function createUserWithTokenDirect(
+  label: string,
+): Promise<TestUser> {
+  const email = `${label}-${randomUUID()}@biz-test.local`;
+  const passwordHash = await hashPassword(testPassword);
+
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash,
+      name: `${label} User`,
+    },
+  });
+
+  return {
+    id: user.id,
+    name: user.name ?? `${label} User`,
+    email,
+    accessToken: signAccessToken(user.id),
+  };
+}
