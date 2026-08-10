@@ -1,7 +1,11 @@
+import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { loginHref } from "@/navigation/hrefs";
 
 export default function WelcomeScreen() {
+  const router = useRouter();
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -14,6 +18,7 @@ export default function WelcomeScreen() {
 
         <Pressable
           accessibilityRole="button"
+          onPress={() => router.push(loginHref)}
           style={({ pressed }) => [
             styles.button,
             pressed && styles.buttonPressed,
