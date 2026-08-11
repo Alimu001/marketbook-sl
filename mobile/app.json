@@ -13,7 +13,8 @@
       "expo-secure-store"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "autolinkingModuleResolution": true
     },
     "splash": {
       "image": "./assets/splash-icon.png",
