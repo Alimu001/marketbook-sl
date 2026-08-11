@@ -4,13 +4,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/auth";
 import { formatBusinessRole, useBusiness } from "@/business";
 import { FormButton } from "@/components/AuthScreen";
-import { appHref, businessCreateHref, businessSelectHref } from "@/navigation/hrefs";
+import { appHref, businessCreateHref, businessSelectHref, productsHref } from "@/navigation/hrefs";
 
 const QUICK_ACTIONS = [
-  "Products",
-  "Sales",
-  "Customers",
-  "Expenses",
+  { label: "Products", href: productsHref, enabled: true },
+  { label: "Sales", enabled: false },
+  { label: "Customers", enabled: false },
+  { label: "Expenses", enabled: false },
 ] as const;
 
 export default function AppHomeScreen() {
@@ -79,15 +79,29 @@ export default function AppHomeScreen() {
             <View style={styles.quickActionsGrid}>
               {QUICK_ACTIONS.map((action) => (
                 <Pressable
-                  key={action}
+                  key={action.label}
                   accessibilityRole="button"
-                  disabled
+                  disabled={!action.enabled}
+                  onPress={() => {
+                    if (action.enabled && "href" in action) {
+                      router.push(action.href);
+                    }
+                  }}
                   style={({ pressed }) => [
                     styles.quickActionButton,
-                    pressed && styles.buttonPressed,
+                    !action.enabled && styles.quickActionDisabled,
+                    pressed && action.enabled && styles.buttonPressed,
                   ]}
                 >
-                  <Text style={styles.quickActionText}>{action}</Text>
+                  <Text
+                    style={[
+                      styles.quickActionText,
+                      !action.enabled && styles.quickActionTextDisabled,
+                      action.enabled && styles.quickActionTextEnabled,
+                    ]}
+                  >
+                    {action.label}
+                  </Text>
                 </Pressable>
               ))}
             </View>
@@ -168,12 +182,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     alignItems: "center",
     backgroundColor: "#FFFFFF",
+  },
+  quickActionDisabled: {
     opacity: 0.65,
   },
   quickActionText: {
-    color: "#64748B",
     fontSize: 16,
     fontWeight: "600",
+  },
+  quickActionTextEnabled: {
+    color: "#0F766E",
+  },
+  quickActionTextDisabled: {
+    color: "#64748B",
   },
   actions: {
     gap: 12,

@@ -20,6 +20,18 @@ export interface ApiErrorBody {
 
 export interface ApiSuccessBody<T> {
   data: T;
+  meta?: {
+    page: number;
+    limit: number;
+    total: number;
+  };
+}
+
+export interface PaginatedResponse<T> {
+  items: T;
+  page: number;
+  limit: number;
+  total: number;
 }
 
 export function getUserFacingErrorMessage(error: unknown): string {
@@ -42,6 +54,10 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "You do not have permission to perform this action.";
       case "NOT_FOUND":
         return "The requested resource could not be found.";
+      case "DUPLICATE_SKU":
+        return "A product with this SKU already exists in this business.";
+      case "DUPLICATE_BARCODE":
+        return "A product with this barcode already exists in this business.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }

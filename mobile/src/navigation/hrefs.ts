@@ -6,6 +6,12 @@ export const registerHref = "/(auth)/register" as Href;
 export const appHref = "/(app)" as Href;
 export const businessCreateHref = "/(app)/business/create" as Href;
 export const businessSelectHref = "/(app)/business/select" as Href;
+export const productsHref = "/(app)/products" as Href;
+export const productCreateHref = "/(app)/products/create" as Href;
+
+export function productDetailHref(productId: string): Href {
+  return `/(app)/products/${productId}` as Href;
+}
 
 export const loginWithRegisteredHref = {
   pathname: "/(auth)/login",
