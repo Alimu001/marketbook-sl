@@ -1,10 +1,13 @@
 import { env } from "@/config/env";
 import {
   ApiError,
+  formatValidationDetails,
   type ApiErrorBody,
   type ApiSuccessBody,
   type PaginatedResponse,
 } from "./errors";
+
+export type { PaginatedResponse };
 
 export interface ApiRequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
@@ -77,14 +80,14 @@ export async function apiRequest<T>(
 
   if (!response.ok) {
     const errorBody = payload as ApiErrorBody | null;
-    const detailsMessage = errorBody?.error?.details
-      ?.map((detail) => detail.message)
-      .join("\n");
+    const validationDetails = formatValidationDetails(errorBody?.error?.details);
+    const domainDetails = errorBody?.error?.details;
 
     throw new ApiError(
       response.status,
       errorBody?.error?.code ?? "REQUEST_FAILED",
-      detailsMessage || errorBody?.error?.message || "Request failed.",
+      validationDetails || errorBody?.error?.message || "Request failed.",
+      domainDetails,
     );
   }
 
@@ -157,14 +160,14 @@ export async function apiRequestPaginated<T>(
 
   if (!response.ok) {
     const errorBody = payload as ApiErrorBody | null;
-    const detailsMessage = errorBody?.error?.details
-      ?.map((detail) => detail.message)
-      .join("\n");
+    const validationDetails = formatValidationDetails(errorBody?.error?.details);
+    const domainDetails = errorBody?.error?.details;
 
     throw new ApiError(
       response.status,
       errorBody?.error?.code ?? "REQUEST_FAILED",
-      detailsMessage || errorBody?.error?.message || "Request failed.",
+      validationDetails || errorBody?.error?.message || "Request failed.",
+      domainDetails,
     );
   }
 

@@ -28,7 +28,7 @@ import { AppError } from "../../middleware/errorHandler.js";
 
 type TransactionClient = Prisma.TransactionClient;
 
-async function lockInventoryBalance(
+export async function lockInventoryBalance(
   tx: TransactionClient,
   businessId: string,
   productId: string,

@@ -51,6 +51,32 @@ export async function resetBizTestData(): Promise<void> {
   });
 
   if (testBusinessIds.length > 0) {
+    await prisma.saleItem.deleteMany({
+      where: {
+        sale: {
+          businessId: {
+            in: testBusinessIds,
+          },
+        },
+      },
+    });
+
+    await prisma.sale.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.saleReceiptSequence.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
     await prisma.inventoryTransaction.deleteMany({
       where: {
         businessId: {
@@ -201,6 +227,10 @@ export function productPath(businessId: string, suffix = "") {
 
 export function inventoryPath(businessId: string, suffix = "") {
   return `/api/v1/businesses/${businessId}/inventory${suffix}`;
+}
+
+export function salesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/sales${suffix}`;
 }
 
 export function productInventoryPath(

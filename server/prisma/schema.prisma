@@ -22,6 +22,18 @@ enum InventoryTransactionType {
   ADJUSTMENT_OUT
   DAMAGE
   RETURN_IN
+  SALE
+}
+
+enum SaleStatus {
+  COMPLETED
+  VOIDED
+}
+
+enum PaymentMethod {
+  CASH
+  MOBILE_MONEY
+  BANK_TRANSFER
 }
 
 model User {
@@ -35,6 +47,7 @@ model User {
   businessMembers BusinessMember[]
   refreshTokens   RefreshToken[]
   inventoryTransactions InventoryTransaction[] @relation("InventoryPerformedBy")
+  salesCreated          Sale[]                 @relation("SaleCreatedBy")
 
   @@index([email])
 }
@@ -49,6 +62,8 @@ model Business {
   products Product[]
   inventoryBalances     InventoryBalance[]
   inventoryTransactions InventoryTransaction[]
+  sales                 Sale[]
+  saleReceiptSequences  SaleReceiptSequence[]
 
   @@index([name])
 }
@@ -102,6 +117,7 @@ model Product {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   inventoryBalance     InventoryBalance?
   inventoryTransactions InventoryTransaction[]
+  saleItems            SaleItem[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -152,4 +168,61 @@ model InventoryTransaction {
   @@index([createdAt])
   @@index([businessId, productId])
   @@index([type])
+}
+
+model Sale {
+  id              String        @id @default(uuid()) @db.Uuid
+  businessId      String        @db.Uuid
+  createdByUserId String        @db.Uuid
+  receiptNumber   String        @unique
+  subtotal        Decimal       @db.Decimal(19, 4)
+  discountAmount  Decimal       @default(0) @db.Decimal(19, 4)
+  totalAmount     Decimal       @db.Decimal(19, 4)
+  paymentMethod   PaymentMethod
+  status          SaleStatus    @default(COMPLETED)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  business  Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdBy User       @relation("SaleCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  items     SaleItem[]
+
+  @@index([businessId])
+  @@index([businessId, createdAt])
+  @@index([paymentMethod])
+  @@index([createdByUserId])
+}
+
+model SaleItem {
+  id                  String   @id @default(uuid()) @db.Uuid
+  saleId              String   @db.Uuid
+  productId           String   @db.Uuid
+  productNameSnapshot String
+  skuSnapshot         String?
+  unitSnapshot        String
+  quantity            Decimal  @db.Decimal(19, 4)
+  unitPrice           Decimal  @db.Decimal(19, 4)
+  costPriceSnapshot   Decimal  @db.Decimal(19, 4)
+  lineSubtotal        Decimal  @db.Decimal(19, 4)
+  createdAt           DateTime @default(now())
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model SaleReceiptSequence {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  dateKey    String
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, dateKey])
+  @@index([businessId])
 }

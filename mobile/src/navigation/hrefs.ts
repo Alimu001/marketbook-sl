@@ -9,6 +9,12 @@ export const businessSelectHref = "/(app)/business/select" as Href;
 export const productsHref = "/(app)/products" as Href;
 export const productCreateHref = "/(app)/products/create" as Href;
 export const inventoryHref = "/(app)/inventory" as Href;
+export const salesHref = "/(app)/sales" as Href;
+export const saleNewHref = "/(app)/sales/new" as Href;
+
+export function saleDetailHref(saleId: string): Href {
+  return `/(app)/sales/${saleId}` as Href;
+}
 
 export function productDetailHref(productId: string): Href {
   return `/(app)/products/${productId}` as Href;

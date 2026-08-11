@@ -24,3 +24,13 @@ export type {
   InventoryTransactionResponse,
   InventoryTransactionType,
 } from "./inventory.js";
+
+export type {
+  CreateSaleResponse,
+  PaymentMethod,
+  SaleDetailResponse,
+  SaleItemResponse,
+  SaleListItem,
+  SaleStatus,
+  SaleUserSummary,
+} from "./sales.js";

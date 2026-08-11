@@ -1,12 +1,19 @@
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  readonly details?: unknown;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: unknown,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -14,7 +21,7 @@ export interface ApiErrorBody {
   error?: {
     code?: string;
     message?: string;
-    details?: Array<{ path: string; message: string }>;
+    details?: unknown;
   };
 }
 
@@ -68,6 +75,14 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "Inventory record not found.";
       case "INVALID_INVENTORY_ADJUSTMENT":
         return "Invalid inventory adjustment.";
+      case "PRODUCT_INACTIVE":
+        return "This product is archived and cannot be sold.";
+      case "INVALID_DISCOUNT":
+        return "Discount cannot exceed the subtotal.";
+      case "SALE_NOT_FOUND":
+        return "Sale not found.";
+      case "EMPTY_SALE":
+        return "Add at least one item before completing the sale.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }
@@ -77,11 +92,45 @@ export function getUserFacingErrorMessage(error: unknown): string {
 }
 
 export function formatValidationDetails(
-  details?: Array<{ path: string; message: string }>,
+  details?: unknown,
 ): string | undefined {
-  if (!details?.length) {
+  if (!details) {
     return undefined;
   }
 
-  return details.map((detail) => detail.message).join("\n");
+  if (Array.isArray(details)) {
+    return details
+      .map((detail) =>
+        typeof detail === "object" &&
+        detail !== null &&
+        "message" in detail &&
+        typeof detail.message === "string"
+          ? detail.message
+          : String(detail),
+      )
+      .join("\n");
+  }
+
+  return undefined;
+}
+
+export function getInsufficientStockMessage(error: ApiError): string | undefined {
+  if (error.code !== "INSUFFICIENT_STOCK") {
+    return undefined;
+  }
+
+  const details = error.details;
+
+  if (
+    typeof details === "object" &&
+    details !== null &&
+    "productName" in details &&
+    "available" in details
+  ) {
+    const productName = String(details.productName);
+    const available = String(details.available);
+    return `Stock changed. ${productName} now has only ${available} available.`;
+  }
+
+  return getUserFacingErrorMessage(error);
 }
