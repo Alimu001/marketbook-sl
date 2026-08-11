@@ -12,6 +12,8 @@ import {
 import { validate } from "../../middleware/validate.js";
 import * as businessController from "./business.controller.js";
 import { productsRouter } from "../products/product.routes.js";
+import { inventoryListRouter } from "../inventory/inventory.routes.js";
+import { salesRouter } from "../sales/sales.routes.js";
 
 export const businessesRouter = Router();
 
@@ -48,6 +50,8 @@ businessScopedRouter.delete(
   businessController.removeMember,
 );
 
+businessScopedRouter.use("/inventory", inventoryListRouter);
 businessScopedRouter.use("/products", productsRouter);
+businessScopedRouter.use("/sales", salesRouter);
 
 businessesRouter.use("/:businessId", businessScopedRouter);
