@@ -47,3 +47,21 @@ export type {
   DebtStatus,
   RecordDebtPaymentResponse,
 } from "./customer.js";
+
+export type {
+  BusinessPayableListItem,
+  CreatePurchaseResponse,
+  PayableStatus,
+  PurchaseDetailResponse,
+  PurchaseItemResponse,
+  PurchaseListItem,
+  PurchasePaymentStatus,
+  PurchaseSupplierSummary,
+  PurchaseUserSummary,
+  RecordSupplierPaymentResponse,
+  SupplierDetail,
+  SupplierHistoryResponse,
+  SupplierPayableSummary,
+  SupplierPaymentResponse,
+  SupplierSummary,
+} from "./supplier.js";
