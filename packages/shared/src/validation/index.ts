@@ -28,3 +28,17 @@ export {
   type UpdateProductInput,
   type ListProductsQuery,
 } from "./product.js";
+
+export {
+  openingStockSchema,
+  stockAdjustmentSchema,
+  stockAdjustmentTypes,
+  updateLowStockThresholdSchema,
+  listInventoryQuerySchema,
+  inventoryHistoryQuerySchema,
+  type OpeningStockInput,
+  type StockAdjustmentInput,
+  type UpdateLowStockThresholdInput,
+  type ListInventoryQuery,
+  type InventoryHistoryQuery,
+} from "./inventory.js";

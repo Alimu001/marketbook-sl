@@ -51,6 +51,22 @@ export async function resetBizTestData(): Promise<void> {
   });
 
   if (testBusinessIds.length > 0) {
+    await prisma.inventoryTransaction.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.inventoryBalance.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
     await prisma.businessMember.deleteMany({
       where: {
         businessId: {
@@ -153,6 +169,18 @@ export const sampleProduct = {
   sellingPrice: 120,
 };
 
+export async function createProductAs(
+  app: Express,
+  accessToken: string,
+  businessId: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return request(app)
+    .post(productPath(businessId))
+    .set(authHeader(accessToken))
+    .send({ ...sampleProduct, ...overrides });
+}
+
 export async function setupOwnerBusiness(app: Express, label: string) {
   const owner = await createTestUser(app, label);
   const businessResponse = await createBusiness(
@@ -169,6 +197,18 @@ export async function setupOwnerBusiness(app: Express, label: string) {
 
 export function productPath(businessId: string, suffix = "") {
   return `/api/v1/businesses/${businessId}/products${suffix}`;
+}
+
+export function inventoryPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/inventory${suffix}`;
+}
+
+export function productInventoryPath(
+  businessId: string,
+  productId: string,
+  suffix = "",
+) {
+  return `/api/v1/businesses/${businessId}/products/${productId}/inventory${suffix}`;
 }
 
 export async function createUserWithTokenDirect(

@@ -17,3 +17,10 @@ export type {
   PaginatedProductsResponse,
   ProductResponse,
 } from "./product.js";
+
+export type {
+  InventoryBalanceResponse,
+  InventoryListItem,
+  InventoryTransactionResponse,
+  InventoryTransactionType,
+} from "./inventory.js";
