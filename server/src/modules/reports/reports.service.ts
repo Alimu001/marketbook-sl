@@ -36,6 +36,7 @@ import {
 } from "./reportFormatters.js";
 
 const COMPLETED_SALE = { status: "COMPLETED" as const };
+const COMPLETED_PURCHASE = { status: "COMPLETED" as const };
 
 function buildPeriod(from: string, to: string) {
   return { from, to };
@@ -57,14 +58,18 @@ async function aggregateSalesRevenue(
     where,
     _sum: {
       totalAmount: true,
+      refundedAmount: true,
       amountPaid: true,
       outstandingAmount: true,
     },
     _count: true,
   });
 
+  const grossRevenue = aggregate._sum.totalAmount ?? new Prisma.Decimal(0);
+  const refunded = aggregate._sum.refundedAmount ?? new Prisma.Decimal(0);
+
   return {
-    revenue: aggregate._sum.totalAmount ?? new Prisma.Decimal(0),
+    revenue: grossRevenue.sub(refunded),
     count: aggregate._count,
     paid: aggregate._sum.amountPaid ?? new Prisma.Decimal(0),
     outstanding: aggregate._sum.outstandingAmount ?? new Prisma.Decimal(0),
@@ -76,8 +81,19 @@ async function aggregateCostOfGoodsSold(
   bounds: { from: Date; to: Date },
   extraSaleWhere: Prisma.SaleWhereInput = {},
 ): Promise<Prisma.Decimal> {
-  const rows = await prisma.$queryRaw<Array<{ cogs: unknown }>>`
-    SELECT COALESCE(SUM(si.quantity * si."costPriceSnapshot"), 0) AS cogs
+  const rows = await prisma.$queryRaw<Array<{ cogs: unknown; refund_cogs: unknown }>>`
+    SELECT
+      COALESCE(SUM(si.quantity * si."costPriceSnapshot"), 0) AS cogs,
+      COALESCE((
+        SELECT SUM(sri.quantity * sri."costPriceSnapshot")
+        FROM "SaleRefundItem" sri
+        INNER JOIN "SaleRefund" sr ON sr.id = sri."refundId"
+        INNER JOIN "Sale" s2 ON s2.id = sr."saleId"
+        WHERE s2."businessId" = ${businessId}::uuid
+          AND s2.status = 'COMPLETED'
+          AND s2."createdAt" >= ${bounds.from}
+          AND s2."createdAt" <= ${bounds.to}
+      ), 0) AS refund_cogs
     FROM "SaleItem" si
     INNER JOIN "Sale" s ON s.id = si."saleId"
     WHERE s."businessId" = ${businessId}::uuid
@@ -101,7 +117,10 @@ async function aggregateCostOfGoodsSold(
       }
   `;
 
-  return decimalFromUnknown(rows[0]?.cogs);
+  const cogs = decimalFromUnknown(rows[0]?.cogs);
+  const refundCogs = decimalFromUnknown(rows[0]?.refund_cogs);
+
+  return cogs.sub(refundCogs);
 }
 
 async function aggregateOperatingExpenses(
@@ -139,6 +158,7 @@ async function aggregatePurchaseSpend(
 }> {
   const where: Prisma.PurchaseWhereInput = {
     businessId,
+    ...COMPLETED_PURCHASE,
     createdAt: { gte: bounds.from, lte: bounds.to },
     ...extraWhere,
   };

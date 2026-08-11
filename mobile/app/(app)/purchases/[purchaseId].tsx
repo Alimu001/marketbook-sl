@@ -15,13 +15,14 @@ import { useBusiness } from "@/business";
 import { FormButton, FormMessage } from "@/components/AuthScreen";
 import { formatQuantityDisplay } from "@/inventory/quantity";
 import { formatMoneyDisplay } from "@/products/money";
-import { purchaseNewHref, purchasesHref } from "@/navigation/hrefs";
+import { purchaseNewHref, purchaseVoidHref, purchasesHref } from "@/navigation/hrefs";
 import {
   formatPurchasePaymentStatus,
   formatSupplierDateTime,
   type PurchaseDetail,
 } from "@/suppliers";
 import { formatPaymentMethod } from "@/sales";
+import { canVoidPurchase } from "@/reversals/permissions";
 
 export default function PurchaseDetailScreen() {
   const router = useRouter();
@@ -36,6 +37,8 @@ export default function PurchaseDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
+  const role = currentBusiness?.role;
+  const canVoid = role ? canVoidPurchase(role) : false;
   const businessId = currentBusiness?.id;
 
   const loadPurchase = useCallback(async () => {
@@ -103,6 +106,12 @@ export default function PurchaseDetailScreen() {
             type="success"
             message="Purchase recorded successfully."
           />
+        ) : null}
+
+        {purchase.status === "VOIDED" ? (
+          <View style={styles.voidBanner}>
+            <Text style={styles.voidBannerText}>VOIDED</Text>
+          </View>
         ) : null}
 
         <Text style={styles.brand}>MarketBook SL</Text>
@@ -173,6 +182,13 @@ export default function PurchaseDetailScreen() {
         <Text style={styles.metaLine}>Recorded by: {recordedByName}</Text>
 
         <View style={styles.actions}>
+          {purchase.status === "COMPLETED" && canVoid ? (
+            <FormButton
+              label="Void Purchase"
+              variant="secondary"
+              onPress={() => router.push(purchaseVoidHref(purchaseId))}
+            />
+          ) : null}
           <FormButton
             label="Back to Purchases"
             onPress={() => router.push(purchasesHref)}
@@ -290,5 +306,17 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: 16,
     gap: 12,
+  },
+  voidBanner: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  voidBannerText: {
+    color: "#B91C1C",
+    fontWeight: "700",
+    fontSize: 16,
+    textAlign: "center",
   },
 });

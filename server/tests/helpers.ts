@@ -69,6 +69,10 @@ export async function resetBizTestData(): Promise<void> {
       },
     });
 
+    await prisma.purchaseVoid.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
     await prisma.purchase.deleteMany({
       where: {
         businessId: {
@@ -102,6 +106,26 @@ export async function resetBizTestData(): Promise<void> {
     });
 
     await prisma.debtPayment.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.saleRefundItem.deleteMany({
+      where: {
+        refund: {
+          businessId: { in: testBusinessIds },
+        },
+      },
+    });
+
+    await prisma.saleRefund.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.saleRefundSequence.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.saleVoid.deleteMany({
       where: { businessId: { in: testBusinessIds } },
     });
 
@@ -329,6 +353,26 @@ export function expensesPath(businessId: string, suffix = "") {
 
 export function reportsPath(businessId: string, suffix = "") {
   return `/api/v1/businesses/${businessId}/reports${suffix}`;
+}
+
+export function refundsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/refunds${suffix}`;
+}
+
+export function saleReversalPath(
+  businessId: string,
+  saleId: string,
+  suffix = "",
+) {
+  return `/api/v1/businesses/${businessId}/sales/${saleId}${suffix}`;
+}
+
+export function purchaseReversalPath(
+  businessId: string,
+  purchaseId: string,
+  suffix = "",
+) {
+  return `/api/v1/businesses/${businessId}/purchases/${purchaseId}${suffix}`;
 }
 
 export function productInventoryPath(

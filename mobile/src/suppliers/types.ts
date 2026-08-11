@@ -193,6 +193,7 @@ export interface PurchaseDetail {
   amountPaid: string;
   outstandingAmount: string;
   paymentStatus: PurchasePaymentStatus;
+  status: "COMPLETED" | "VOIDED";
   paymentMethod: PaymentMethod | null;
   notes: string | null;
   supplier: SupplierSummaryRef;

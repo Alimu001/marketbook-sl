@@ -37,6 +37,24 @@ export function saleDetailHref(saleId: string): Href {
   return `/(app)/sales/${saleId}` as Href;
 }
 
+export function saleRefundHref(saleId: string): Href {
+  return `/(app)/sales/refund/${saleId}` as Href;
+}
+
+export function saleVoidHref(saleId: string): Href {
+  return `/(app)/sales/void/${saleId}` as Href;
+}
+
+export function purchaseVoidHref(purchaseId: string): Href {
+  return `/(app)/purchases/void/${purchaseId}` as Href;
+}
+
+export const refundsHref = "/(app)/refunds" as Href;
+
+export function refundDetailHref(refundId: string): Href {
+  return `/(app)/refunds/${refundId}` as Href;
+}
+
 export function productDetailHref(productId: string): Href {
   return `/(app)/products/${productId}` as Href;
 }

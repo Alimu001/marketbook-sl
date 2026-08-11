@@ -21,8 +21,10 @@ export interface SaleListItem {
   totalAmount: string;
   amountPaid: string;
   outstandingAmount: string;
+  refundedAmount: string;
   paymentStatus: SalePaymentStatus;
   paymentMethod: PaymentMethod | null;
+  status: SaleStatus;
   customer: SaleCustomerSummary | null;
   createdBy: SaleUserSummary;
   itemCount: number;
@@ -51,6 +53,8 @@ export interface SaleDetailResponse {
   totalAmount: string;
   amountPaid: string;
   outstandingAmount: string;
+  refundedAmount: string;
+  remainingRefundableAmount: string;
   paymentStatus: SalePaymentStatus;
   paymentMethod: PaymentMethod | null;
   status: SaleStatus;

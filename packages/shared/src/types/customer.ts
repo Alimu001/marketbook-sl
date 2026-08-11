@@ -1,4 +1,4 @@
-export type DebtStatus = "OPEN" | "PARTIALLY_PAID" | "PAID";
+export type DebtStatus = "OPEN" | "PARTIALLY_PAID" | "PAID" | "VOIDED";
 
 export type SalePaymentStatus = "PAID" | "PARTIALLY_PAID" | "UNPAID";
 

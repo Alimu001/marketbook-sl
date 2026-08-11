@@ -86,3 +86,18 @@ export type {
   SalesReportResponse,
   TopProductsReportResponse,
 } from "./report.js";
+
+export type {
+  CreatePurchaseVoidResponse,
+  CreateSaleRefundResponse,
+  CreateSaleVoidResponse,
+  PurchaseVoidResponse,
+  SaleItemRefundableSummary,
+  SaleRefundItemResponse,
+  SaleRefundListItem,
+  SaleRefundResponse,
+  SaleRefundSummaryForSale,
+  SaleRefundUserSummary,
+  SaleReversalSummary,
+  SaleVoidResponse,
+} from "./reversal.js";

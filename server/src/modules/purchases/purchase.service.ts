@@ -139,6 +139,7 @@ function toPurchaseDetailResponse(
     outstandingAmount: Prisma.Decimal;
     paymentStatus: "PAID" | "PARTIALLY_PAID" | "UNPAID";
     paymentMethod: PaymentMethod | null;
+    status: "COMPLETED" | "VOIDED";
     notes: string | null;
     supplierId: string;
     supplierNameSnapshot: string;
@@ -177,6 +178,7 @@ function toPurchaseDetailResponse(
     outstandingAmount: formatMoney(purchase.outstandingAmount),
     paymentStatus: purchase.paymentStatus,
     paymentMethod: purchase.paymentMethod,
+    status: purchase.status,
     notes: purchase.notes,
     supplier: {
       id: purchase.supplierId,
@@ -320,6 +322,7 @@ export async function createPurchase(
         outstandingAmount,
         paymentMethod: amountPaid.gt(0) ? input.paymentMethod! : null,
         paymentStatus,
+        status: "COMPLETED",
         notes: input.notes ?? null,
         items: {
           create: preparedLines.map((line) => ({
@@ -459,6 +462,7 @@ export async function listPurchases(
         amountPaid: formatMoney(purchase.amountPaid),
         outstandingAmount: formatMoney(purchase.outstandingAmount),
         paymentStatus: purchase.paymentStatus,
+        status: purchase.status,
         supplier: {
           id: purchase.supplierId,
           name: purchase.supplierNameSnapshot,

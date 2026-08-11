@@ -9,13 +9,23 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getSale } from "@/api/sales";
+import {
+  getSaleReversalSummary,
+  listSaleRefunds,
+  type SaleRefundDetail,
+  type SaleReversalSummary,
+} from "@/api/reversals";
 import { ApiError, getUserFacingErrorMessage } from "@/api/errors";
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/business";
 import { FormButton, FormMessage } from "@/components/AuthScreen";
 import { formatQuantityDisplay } from "@/inventory/quantity";
 import { formatMoneyDisplay } from "@/products/money";
-import { saleNewHref, salesHref } from "@/navigation/hrefs";
+import { saleNewHref, saleRefundHref, saleVoidHref, salesHref } from "@/navigation/hrefs";
+import {
+  canCreateSaleRefund,
+  canVoidSale,
+} from "@/reversals/permissions";
 import {
   formatPaymentMethod,
   formatSaleDateTime,
@@ -25,18 +35,25 @@ import {
 
 export default function SaleDetailScreen() {
   const router = useRouter();
-  const { saleId, completed } = useLocalSearchParams<{
+  const { saleId, completed, refunded } = useLocalSearchParams<{
     saleId: string;
     completed?: string;
+    refunded?: string;
   }>();
   const { accessToken, user } = useAuth();
   const { currentBusiness } = useBusiness();
 
   const [sale, setSale] = useState<SaleDetail | null>(null);
+  const [reversalSummary, setReversalSummary] =
+    useState<SaleReversalSummary | null>(null);
+  const [refunds, setRefunds] = useState<SaleRefundDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
   const businessId = currentBusiness?.id;
+  const role = currentBusiness?.role;
+  const canRefund = role ? canCreateSaleRefund(role) : false;
+  const canVoid = role ? canVoidSale(role) : false;
 
   const loadSale = useCallback(async () => {
     if (!accessToken || !businessId || !saleId) {
@@ -47,8 +64,14 @@ export default function SaleDetailScreen() {
     setErrorMessage(undefined);
 
     try {
-      const detail = await getSale(accessToken, businessId, saleId);
+      const [detail, summary, refundList] = await Promise.all([
+        getSale(accessToken, businessId, saleId),
+        getSaleReversalSummary(accessToken, businessId, saleId),
+        listSaleRefunds(accessToken, businessId, saleId),
+      ]);
       setSale(detail);
+      setReversalSummary(summary);
+      setRefunds(refundList.refunds);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         router.replace("/(auth)/login");
@@ -97,6 +120,15 @@ export default function SaleDetailScreen() {
             type="success"
             message="Sale completed successfully."
           />
+        ) : null}
+        {refunded === "1" ? (
+          <FormMessage type="success" message="Refund completed successfully." />
+        ) : null}
+
+        {sale.status === "VOIDED" ? (
+          <View style={styles.voidBanner}>
+            <Text style={styles.voidBannerText}>VOIDED</Text>
+          </View>
         ) : null}
 
         <Text style={styles.brand}>MarketBook SL</Text>
@@ -153,9 +185,53 @@ export default function SaleDetailScreen() {
         <Text style={styles.metaLine}>
           Payment: {formatPaymentMethod(sale.paymentMethod)}
         </Text>
+        {reversalSummary ? (
+          <>
+            <Text style={styles.metaLine}>
+              Refunded: {formatMoneyDisplay(reversalSummary.refundedAmount)}
+            </Text>
+            <Text style={styles.metaLine}>
+              Remaining refundable:{" "}
+              {formatMoneyDisplay(reversalSummary.remainingRefundableAmount)}
+            </Text>
+          </>
+        ) : null}
         <Text style={styles.metaLine}>Served by: {servedByName}</Text>
 
+        {refunds.length > 0 ? (
+          <>
+            <View style={styles.divider} />
+            <Text style={styles.sectionTitle}>Refund History</Text>
+            {refunds.map((refund) => (
+              <View key={refund.id} style={styles.refundRow}>
+                <Text style={styles.refundNumber}>{refund.refundNumber}</Text>
+                <Text style={styles.refundAmount}>
+                  {formatMoneyDisplay(refund.refundAmount)}
+                </Text>
+                <Text style={styles.refundReason}>{refund.reason}</Text>
+              </View>
+            ))}
+          </>
+        ) : null}
+
         <View style={styles.actions}>
+          {sale.status === "COMPLETED" && canRefund && reversalSummary &&
+          !reversalSummary.isFullyRefunded ? (
+            <FormButton
+              label="Refund Items"
+              onPress={() => router.push(saleRefundHref(saleId))}
+            />
+          ) : null}
+          {sale.status === "COMPLETED" &&
+          canVoid &&
+          reversalSummary &&
+          reversalSummary.refundedAmount === "0.00" ? (
+            <FormButton
+              label="Void Sale"
+              variant="secondary"
+              onPress={() => router.push(saleVoidHref(saleId))}
+            />
+          ) : null}
           <FormButton label="Back to Sales" onPress={() => router.push(salesHref)} />
           <FormButton
             label="New Sale"
@@ -270,5 +346,35 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: 16,
     gap: 12,
+  },
+  voidBanner: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  voidBannerText: {
+    color: "#B91C1C",
+    fontWeight: "700",
+    fontSize: 16,
+    textAlign: "center",
+  },
+  refundRow: {
+    marginBottom: 12,
+    gap: 2,
+  },
+  refundNumber: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  refundAmount: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F766E",
+  },
+  refundReason: {
+    fontSize: 14,
+    color: "#64748B",
   },
 });

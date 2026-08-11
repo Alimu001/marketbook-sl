@@ -112,6 +112,7 @@ function toSaleDetailResponse(
     totalAmount: Prisma.Decimal;
     amountPaid: Prisma.Decimal;
     outstandingAmount: Prisma.Decimal;
+    refundedAmount: Prisma.Decimal;
     paymentStatus: "PAID" | "PARTIALLY_PAID" | "UNPAID";
     paymentMethod: PaymentMethod | null;
     status: "COMPLETED" | "VOIDED";
@@ -145,6 +146,10 @@ function toSaleDetailResponse(
 ): SaleDetailResponse {
   const customerName =
     sale.customerNameSnapshot ?? sale.customer?.name ?? null;
+  const remainingRefundableAmount = subtractMoney(
+    sale.totalAmount,
+    sale.refundedAmount,
+  );
 
   return {
     id: sale.id,
@@ -155,6 +160,8 @@ function toSaleDetailResponse(
     totalAmount: formatMoney(sale.totalAmount),
     amountPaid: formatMoney(sale.amountPaid),
     outstandingAmount: formatMoney(sale.outstandingAmount),
+    refundedAmount: formatMoney(sale.refundedAmount),
+    remainingRefundableAmount: formatMoney(remainingRefundableAmount),
     paymentStatus: sale.paymentStatus,
     paymentMethod: sale.paymentMethod,
     status: sale.status,
@@ -489,8 +496,10 @@ export async function listSales(businessId: string, query: ListSalesQuery) {
         totalAmount: formatMoney(sale.totalAmount),
         amountPaid: formatMoney(sale.amountPaid),
         outstandingAmount: formatMoney(sale.outstandingAmount),
+        refundedAmount: formatMoney(sale.refundedAmount),
         paymentStatus: sale.paymentStatus,
         paymentMethod: sale.paymentMethod,
+        status: sale.status,
         customer:
           sale.customerId && (sale.customerNameSnapshot ?? sale.customer?.name)
             ? {

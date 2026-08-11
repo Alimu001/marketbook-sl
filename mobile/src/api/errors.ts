@@ -131,6 +131,28 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "Enter a valid report date range (YYYY-MM-DD).";
       case "REPORT_RANGE_TOO_LARGE":
         return "Report date range cannot exceed 2 years.";
+      case "SALE_ALREADY_VOIDED":
+        return "This sale has already been voided.";
+      case "SALE_ALREADY_PARTIALLY_REFUNDED":
+        return "This sale has partial refunds and cannot be voided. Process additional refunds instead.";
+      case "REFUND_QUANTITY_EXCEEDED":
+        return "That quantity has already been refunded or exceeds the amount sold.";
+      case "REFUND_EXCEEDS_AVAILABLE_FINANCIAL_BALANCE":
+        return "This refund exceeds the remaining refundable amount for this sale.";
+      case "SALE_HAS_PAYMENTS_REQUIRING_REFUND":
+        return "This sale has collected payments. Use the refund workflow to return money safely.";
+      case "REFUND_NOT_FOUND":
+        return "Refund record not found.";
+      case "SALE_ITEM_NOT_FOUND":
+        return "Sale item not found.";
+      case "PURCHASE_ALREADY_VOIDED":
+        return "This purchase has already been voided.";
+      case "PURCHASE_HAS_PAYMENTS":
+        return "This purchase has supplier payments and cannot be voided.";
+      case "INSUFFICIENT_STOCK_FOR_PURCHASE_VOID":
+        return "This purchase cannot be voided because some of its stock has already been sold or removed.";
+      case "INVALID_REFUND":
+        return "Invalid refund request.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }

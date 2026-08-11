@@ -1,6 +1,8 @@
-export type PayableStatus = "OPEN" | "PARTIALLY_PAID" | "PAID";
+export type PayableStatus = "OPEN" | "PARTIALLY_PAID" | "PAID" | "VOIDED";
 
 export type PurchasePaymentStatus = "PAID" | "PARTIALLY_PAID" | "UNPAID";
+
+export type PurchaseStatus = "COMPLETED" | "VOIDED";
 
 export interface SupplierSummary {
   id: string;
@@ -107,6 +109,7 @@ export interface PurchaseListItem {
   amountPaid: string;
   outstandingAmount: string;
   paymentStatus: PurchasePaymentStatus;
+  status: PurchaseStatus;
   itemCount: number;
   createdBy: PurchaseUserSummary;
   createdAt: string;
@@ -135,6 +138,7 @@ export interface PurchaseDetailResponse {
   outstandingAmount: string;
   paymentStatus: PurchasePaymentStatus;
   paymentMethod: "CASH" | "MOBILE_MONEY" | "BANK_TRANSFER" | null;
+  status: PurchaseStatus;
   notes: string | null;
   supplier: PurchaseSupplierSummary;
   createdBy: PurchaseUserSummary;

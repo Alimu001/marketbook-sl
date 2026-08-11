@@ -4,6 +4,7 @@ import {
   listSalesQuerySchema,
 } from "@marketbook/shared/validation";
 import { validate, validateQuery } from "../../middleware/validate.js";
+import { saleReversalRouter } from "../reversals/reversal.routes.js";
 import * as salesController from "./sales.controller.js";
 
 export const salesRouter = Router({ mergeParams: true });
@@ -17,3 +18,5 @@ salesRouter.get(
 );
 
 salesRouter.get("/:saleId", salesController.getSaleDetail);
+
+salesRouter.use("/:saleId", saleReversalRouter);
