@@ -2,28 +2,33 @@
   "name": "marketbook-sl",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "mobile",
-    "server",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@10.33.3",
   "scripts": {
-    "dev:server": "npm run dev -w server",
-    "dev:mobile": "npm run start -w mobile",
-    "dev": "concurrently -n server,mobile -c blue,green \"npm run dev:server\" \"npm run dev:mobile\"",
-    "start:server": "npm run start -w server",
-    "start:mobile": "npm run start -w mobile",
-    "db:migrate": "npm run db:migrate -w server",
-    "db:seed": "npm run db:seed -w server",
-    "db:studio": "npm run db:studio -w server",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test -w server"
+    "dev:server": "pnpm --filter server dev",
+    "dev:mobile": "pnpm --filter mobile start",
+    "dev": "concurrently -n server,mobile -c blue,green \"pnpm run dev:server\" \"pnpm run dev:mobile\"",
+    "start:server": "pnpm --filter server start",
+    "start:mobile": "pnpm --filter mobile start",
+    "db:migrate": "pnpm --filter server db:migrate",
+    "db:seed": "pnpm --filter server db:seed",
+    "db:studio": "pnpm --filter server db:studio",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm --filter server test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "concurrently": "^9.1.2",
     "eslint": "^9.39.2",
+    "typescript": "~5.9.2",
     "typescript-eslint": "^8.50.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "bcrypt",
+      "esbuild",
+      "prisma"
+    ]
   }
 }
