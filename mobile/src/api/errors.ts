@@ -99,6 +99,22 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "Enter a valid payment amount greater than zero.";
       case "PAYMENT_EXCEEDS_OUTSTANDING":
         return "Payment amount exceeds the outstanding balance.";
+      case "SUPPLIER_NOT_FOUND":
+        return "Supplier not found.";
+      case "SUPPLIER_INACTIVE":
+        return "This supplier is archived and cannot be used for purchases.";
+      case "SUPPLIER_REQUIRED":
+        return "Select a supplier before recording the purchase.";
+      case "PURCHASE_NOT_FOUND":
+        return "Purchase not found.";
+      case "EMPTY_PURCHASE":
+        return "Add at least one item before recording the purchase.";
+      case "INVALID_UNIT_COST":
+        return "Enter a valid unit cost for each item.";
+      case "PAYABLE_NOT_FOUND":
+        return "Payable record not found.";
+      case "PAYABLE_ALREADY_PAID":
+        return "This payable has already been fully paid.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }

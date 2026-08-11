@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/auth";
 import { formatBusinessRole, useBusiness } from "@/business";
 import { FormButton } from "@/components/AuthScreen";
-import { appHref, businessCreateHref, businessSelectHref, customersHref, debtsHref, inventoryHref, productsHref, salesHref } from "@/navigation/hrefs";
+import { appHref, businessCreateHref, businessSelectHref, customersHref, debtsHref, inventoryHref, payablesHref, productsHref, purchasesHref, salesHref, suppliersHref } from "@/navigation/hrefs";
 
 const QUICK_ACTIONS = [
   { label: "Products", href: productsHref, enabled: true },
@@ -12,6 +12,9 @@ const QUICK_ACTIONS = [
   { label: "Sales", href: salesHref, enabled: true },
   { label: "Customers", href: customersHref, enabled: true },
   { label: "Debts", href: debtsHref, enabled: true },
+  { label: "Suppliers", href: suppliersHref, enabled: true },
+  { label: "Purchases", href: purchasesHref, enabled: true },
+  { label: "Payables", href: payablesHref, enabled: true },
   { label: "Expenses", enabled: false },
 ] as const;
 

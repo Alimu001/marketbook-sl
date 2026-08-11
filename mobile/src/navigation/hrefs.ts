@@ -15,6 +15,12 @@ export const customersHref = "/(app)/customers" as Href;
 export const customerCreateHref = "/(app)/customers/create" as Href;
 export const customerSelectHref = "/(app)/customers/select" as Href;
 export const debtsHref = "/(app)/debts" as Href;
+export const suppliersHref = "/(app)/suppliers" as Href;
+export const supplierCreateHref = "/(app)/suppliers/create" as Href;
+export const supplierSelectHref = "/(app)/suppliers/select" as Href;
+export const purchasesHref = "/(app)/purchases" as Href;
+export const purchaseNewHref = "/(app)/purchases/new" as Href;
+export const payablesHref = "/(app)/payables" as Href;
 
 export function saleDetailHref(saleId: string): Href {
   return `/(app)/sales/${saleId}` as Href;
@@ -54,6 +60,22 @@ export function debtDetailHref(debtId: string): Href {
 
 export function debtPayHref(debtId: string): Href {
   return `/(app)/debts/pay/${debtId}` as Href;
+}
+
+export function supplierDetailHref(supplierId: string): Href {
+  return `/(app)/suppliers/${supplierId}` as Href;
+}
+
+export function purchaseDetailHref(purchaseId: string): Href {
+  return `/(app)/purchases/${purchaseId}` as Href;
+}
+
+export function payableDetailHref(payableId: string): Href {
+  return `/(app)/payables/${payableId}` as Href;
+}
+
+export function payablePayHref(payableId: string): Href {
+  return `/(app)/payables/pay/${payableId}` as Href;
 }
 
 export const loginWithRegisteredHref = {

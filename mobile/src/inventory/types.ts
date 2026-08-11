@@ -5,7 +5,9 @@ export type InventoryTransactionType =
   | "ADJUSTMENT_IN"
   | "ADJUSTMENT_OUT"
   | "DAMAGE"
-  | "RETURN_IN";
+  | "RETURN_IN"
+  | "SALE"
+  | "PURCHASE";
 
 export interface InventoryBalance {
   productId: string;
@@ -96,6 +98,10 @@ export function transactionTypeLabel(type: InventoryTransactionType): string {
   switch (type) {
     case "OPENING_STOCK":
       return "Opening Stock";
+    case "SALE":
+      return "Sale";
+    case "PURCHASE":
+      return "Purchase";
     default:
       return type.replaceAll("_", " ");
   }
