@@ -93,6 +93,14 @@ export async function resetBizTestData(): Promise<void> {
       },
     });
 
+    await prisma.expense.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.expenseCategory.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
     await prisma.debtPayment.deleteMany({
       where: { businessId: { in: testBusinessIds } },
     });
@@ -309,6 +317,14 @@ export function purchasesPath(businessId: string, suffix = "") {
 
 export function payablesPath(businessId: string, suffix = "") {
   return `/api/v1/businesses/${businessId}/payables${suffix}`;
+}
+
+export function expenseCategoriesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/expense-categories${suffix}`;
+}
+
+export function expensesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/expenses${suffix}`;
 }
 
 export function productInventoryPath(

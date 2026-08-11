@@ -96,3 +96,18 @@ export {
   type RecordSupplierPaymentInput,
   type ListSupplierPaymentsQuery,
 } from "./supplier.js";
+
+export {
+  createExpenseCategorySchema,
+  updateExpenseCategorySchema,
+  listExpenseCategoriesQuerySchema,
+  createExpenseSchema,
+  updateExpenseSchema,
+  listExpensesQuerySchema,
+  type CreateExpenseCategoryInput,
+  type UpdateExpenseCategoryInput,
+  type ListExpenseCategoriesQuery,
+  type CreateExpenseInput,
+  type UpdateExpenseInput,
+  type ListExpensesQuery,
+} from "./expense.js";

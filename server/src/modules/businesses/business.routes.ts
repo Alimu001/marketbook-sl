@@ -19,6 +19,8 @@ import { businessDebtsRouter } from "../debts/debt.routes.js";
 import { suppliersRouter } from "../suppliers/supplier.routes.js";
 import { purchasesRouter } from "../purchases/purchase.routes.js";
 import { businessPayablesRouter } from "../payables/payable.routes.js";
+import { expenseCategoriesRouter } from "../expenses/expense-category.routes.js";
+import { expensesRouter } from "../expenses/expense.routes.js";
 
 export const businessesRouter = Router();
 
@@ -63,5 +65,7 @@ businessScopedRouter.use("/debts", businessDebtsRouter);
 businessScopedRouter.use("/suppliers", suppliersRouter);
 businessScopedRouter.use("/purchases", purchasesRouter);
 businessScopedRouter.use("/payables", businessPayablesRouter);
+businessScopedRouter.use("/expense-categories", expenseCategoriesRouter);
+businessScopedRouter.use("/expenses", expensesRouter);
 
 businessesRouter.use("/:businessId", businessScopedRouter);

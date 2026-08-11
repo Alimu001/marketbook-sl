@@ -65,3 +65,11 @@ export type {
   SupplierPaymentResponse,
   SupplierSummary,
 } from "./supplier.js";
+
+export type {
+  ExpenseCategoryRef,
+  ExpenseCategorySummary,
+  ExpenseDetail,
+  ExpenseListItem,
+  ExpenseUserSummary,
+} from "./expense.js";

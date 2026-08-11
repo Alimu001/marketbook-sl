@@ -115,6 +115,18 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "Payable record not found.";
       case "PAYABLE_ALREADY_PAID":
         return "This payable has already been fully paid.";
+      case "EXPENSE_NOT_FOUND":
+        return "Expense not found.";
+      case "EXPENSE_CATEGORY_NOT_FOUND":
+        return "Expense category not found.";
+      case "EXPENSE_CATEGORY_INACTIVE":
+        return "This expense category is archived and cannot be used.";
+      case "DUPLICATE_EXPENSE_CATEGORY":
+        return "An expense category with this name already exists.";
+      case "INVALID_EXPENSE_AMOUNT":
+        return "Enter a valid expense amount greater than zero.";
+      case "INVALID_EXPENSE_DATE":
+        return "Enter a valid expense date (YYYY-MM-DD).";
       default:
         return error.message || "Something went wrong. Please try again.";
     }

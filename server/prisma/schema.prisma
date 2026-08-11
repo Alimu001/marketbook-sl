@@ -64,6 +64,7 @@ model User {
   debtPaymentsRecorded  DebtPayment[]          @relation("DebtPaymentRecordedBy")
   purchasesCreated      Purchase[]             @relation("PurchaseCreatedBy")
   supplierPaymentsRecorded SupplierPayment[]   @relation("SupplierPaymentRecordedBy")
+  expensesRecorded         Expense[]            @relation("ExpenseRecordedBy")
 
   @@index([email])
 }
@@ -88,6 +89,8 @@ model Business {
   purchaseNumberSequences PurchaseNumberSequence[]
   supplierPayables      SupplierPayable[]
   supplierPayments      SupplierPayment[]
+  expenseCategories     ExpenseCategory[]
+  expenses              Expense[]
 
   @@index([name])
 }
@@ -464,4 +467,49 @@ model SupplierPayment {
   @@index([supplierId])
   @@index([payableId])
   @@index([createdAt])
+}
+
+model ExpenseCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  businessId  String   @db.Uuid
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@index([businessId, isActive])
+}
+
+model Expense {
+  id               String        @id @default(uuid()) @db.Uuid
+  businessId       String        @db.Uuid
+  categoryId       String        @db.Uuid
+  recordedByUserId String        @db.Uuid
+  amount           Decimal       @db.Decimal(19, 4)
+  paymentMethod    PaymentMethod
+  expenseDate      DateTime      @db.Date
+  vendorOrPayee    String?
+  referenceNumber  String?
+  description      String
+  notes            String?
+  isArchived       Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  business   Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  recordedBy User            @relation("ExpenseRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId])
+  @@index([businessId, expenseDate])
+  @@index([businessId, isArchived])
+  @@index([categoryId])
+  @@index([paymentMethod])
+  @@index([recordedByUserId])
 }

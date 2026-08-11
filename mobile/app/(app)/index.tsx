@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/auth";
 import { formatBusinessRole, useBusiness } from "@/business";
 import { FormButton } from "@/components/AuthScreen";
-import { appHref, businessCreateHref, businessSelectHref, customersHref, debtsHref, inventoryHref, payablesHref, productsHref, purchasesHref, salesHref, suppliersHref } from "@/navigation/hrefs";
+import { appHref, businessCreateHref, businessSelectHref, customersHref, debtsHref, expensesHref, inventoryHref, payablesHref, productsHref, purchasesHref, salesHref, suppliersHref } from "@/navigation/hrefs";
 
 const QUICK_ACTIONS = [
   { label: "Products", href: productsHref, enabled: true },
@@ -15,7 +15,7 @@ const QUICK_ACTIONS = [
   { label: "Suppliers", href: suppliersHref, enabled: true },
   { label: "Purchases", href: purchasesHref, enabled: true },
   { label: "Payables", href: payablesHref, enabled: true },
-  { label: "Expenses", enabled: false },
+  { label: "Expenses", href: expensesHref, enabled: true },
 ] as const;
 
 export default function AppHomeScreen() {
