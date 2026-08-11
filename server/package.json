@@ -5,12 +5,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "npm run build -w @marketbook/shared",
+    "predev": "pnpm --filter @marketbook/shared build",
     "dev": "tsx watch src/index.ts",
-    "prestart": "npm run build -w @marketbook/shared",
+    "prestart": "pnpm --filter @marketbook/shared build",
     "start": "tsx src/index.ts",
     "build": "tsc",
-    "typecheck": "npm run build -w @marketbook/shared && tsc --noEmit",
+    "typecheck": "pnpm --filter @marketbook/shared build && tsc --noEmit",
     "lint": "eslint src tests",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -22,7 +22,7 @@
     "db:validate": "prisma validate"
   },
   "dependencies": {
-    "@marketbook/shared": "*",
+    "@marketbook/shared": "workspace:*",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "bcrypt": "^6.0.0",
@@ -30,16 +30,19 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/express-serve-static-core": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.1.2",
     "@types/pg": "^8.21.0",
     "@types/supertest": "^6.0.3",
+    "@types/superagent": "^8.1.9",
     "prisma": "^7.9.1",
     "supertest": "^7.2.2",
     "tsx": "^4.23.11",
