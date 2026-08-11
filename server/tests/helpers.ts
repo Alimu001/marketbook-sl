@@ -51,6 +51,48 @@ export async function resetBizTestData(): Promise<void> {
   });
 
   if (testBusinessIds.length > 0) {
+    await prisma.supplierPayment.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.supplierPayable.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.purchaseItem.deleteMany({
+      where: {
+        purchase: {
+          businessId: {
+            in: testBusinessIds,
+          },
+        },
+      },
+    });
+
+    await prisma.purchase.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.purchaseNumberSequence.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.supplier.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
     await prisma.debtPayment.deleteMany({
       where: { businessId: { in: testBusinessIds } },
     });
@@ -255,6 +297,18 @@ export function customersPath(businessId: string, suffix = "") {
 
 export function debtsPath(businessId: string, suffix = "") {
   return `/api/v1/businesses/${businessId}/debts${suffix}`;
+}
+
+export function suppliersPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/suppliers${suffix}`;
+}
+
+export function purchasesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/purchases${suffix}`;
+}
+
+export function payablesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/payables${suffix}`;
 }
 
 export function productInventoryPath(
