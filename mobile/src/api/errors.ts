@@ -58,6 +58,16 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "A product with this SKU already exists in this business.";
       case "DUPLICATE_BARCODE":
         return "A product with this barcode already exists in this business.";
+      case "INSUFFICIENT_STOCK":
+        return "Not enough stock available for this operation.";
+      case "OPENING_STOCK_ALREADY_SET":
+        return "Opening stock has already been set for this product. Use stock adjustments instead.";
+      case "OPENING_STOCK_NOT_SET":
+        return "Set opening stock before making adjustments.";
+      case "INVENTORY_NOT_FOUND":
+        return "Inventory record not found.";
+      case "INVALID_INVENTORY_ADJUSTMENT":
+        return "Invalid inventory adjustment.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }
