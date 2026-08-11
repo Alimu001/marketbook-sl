@@ -1,16 +1,27 @@
 export type PaymentMethod = "CASH" | "MOBILE_MONEY" | "BANK_TRANSFER";
 
+export type SalePaymentStatus = "PAID" | "PARTIALLY_PAID" | "UNPAID";
+
 export interface SaleUserSummary {
   id: string;
   name: string | null;
   email: string;
 }
 
+export interface SaleCustomerSummary {
+  id: string;
+  name: string;
+}
+
 export interface SaleListItem {
   id: string;
   receiptNumber: string;
   totalAmount: string;
-  paymentMethod: PaymentMethod;
+  amountPaid: string;
+  outstandingAmount: string;
+  paymentStatus: SalePaymentStatus;
+  paymentMethod: PaymentMethod | null;
+  customer: SaleCustomerSummary | null;
   createdBy: SaleUserSummary;
   itemCount: number;
   createdAt: string;
@@ -36,9 +47,13 @@ export interface SaleDetail {
   subtotal: string;
   discountAmount: string;
   totalAmount: string;
-  paymentMethod: PaymentMethod;
+  amountPaid: string;
+  outstandingAmount: string;
+  paymentStatus: SalePaymentStatus;
+  paymentMethod: PaymentMethod | null;
   status: "COMPLETED" | "VOIDED";
   notes: string | null;
+  customer: SaleCustomerSummary | null;
   createdBy: SaleUserSummary;
   items: SaleItem[];
   createdAt: string;
@@ -51,7 +66,9 @@ export interface CreateSalePayload {
     quantity: string;
   }>;
   discountAmount?: string;
-  paymentMethod: PaymentMethod;
+  customerId?: string;
+  amountPaid?: string;
+  paymentMethod?: PaymentMethod;
   notes?: string;
 }
 
@@ -59,6 +76,7 @@ export interface ListSalesParams {
   page?: number;
   limit?: number;
   paymentMethod?: PaymentMethod;
+  paymentStatus?: SalePaymentStatus;
   from?: string;
   to?: string;
 }
@@ -79,8 +97,28 @@ export const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string }> = [
   { value: "BANK_TRANSFER", label: "Bank Transfer" },
 ];
 
-export function formatPaymentMethod(method: PaymentMethod): string {
+export const SALE_PAYMENT_STATUSES: Array<{
+  value: SalePaymentStatus;
+  label: string;
+}> = [
+  { value: "PAID", label: "Paid" },
+  { value: "PARTIALLY_PAID", label: "Partially Paid" },
+  { value: "UNPAID", label: "Unpaid" },
+];
+
+export function formatPaymentMethod(method: PaymentMethod | null): string {
+  if (!method) {
+    return "—";
+  }
+
   return PAYMENT_METHODS.find((entry) => entry.value === method)?.label ?? method;
+}
+
+export function formatSalePaymentStatus(status: SalePaymentStatus): string {
+  return (
+    SALE_PAYMENT_STATUSES.find((entry) => entry.value === status)?.label ??
+    status
+  );
 }
 
 export function formatSaleDateTime(isoDate: string): string {

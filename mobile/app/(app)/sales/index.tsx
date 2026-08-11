@@ -20,6 +20,7 @@ import { saleDetailHref, saleNewHref } from "@/navigation/hrefs";
 import {
   formatPaymentMethod,
   formatSaleDateTime,
+  formatSalePaymentStatus,
   type SaleListItem,
 } from "@/sales";
 
@@ -151,6 +152,25 @@ export default function SalesListScreen() {
                   </Text>
                   <Text style={styles.metaText}>{item.itemCount} items</Text>
                 </View>
+                <View style={styles.paymentSummary}>
+                  {item.customer ? (
+                    <Text style={styles.summaryText} numberOfLines={1}>
+                      {item.customer.name}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.summaryText}>
+                    Paid {formatMoneyDisplay(item.amountPaid)}
+                  </Text>
+                  {item.paymentStatus !== "PAID" ? (
+                    <Text style={styles.balanceText}>
+                      Due {formatMoneyDisplay(item.outstandingAmount)}
+                    </Text>
+                  ) : (
+                    <Text style={styles.summaryText}>
+                      {formatSalePaymentStatus(item.paymentStatus)}
+                    </Text>
+                  )}
+                </View>
                 <Text style={styles.dateText}>
                   {formatSaleDateTime(item.createdAt)}
                 </Text>
@@ -235,6 +255,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#475569",
     fontWeight: "600",
+  },
+  paymentSummary: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  summaryText: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  balanceText: {
+    fontSize: 13,
+    color: "#DC2626",
+    fontWeight: "700",
   },
   dateText: {
     marginTop: 8,

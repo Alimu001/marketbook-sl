@@ -19,6 +19,7 @@ import { saleNewHref, salesHref } from "@/navigation/hrefs";
 import {
   formatPaymentMethod,
   formatSaleDateTime,
+  formatSalePaymentStatus,
   type SaleDetail,
 } from "@/sales";
 
@@ -137,6 +138,18 @@ export default function SaleDetailScreen() {
 
         <View style={styles.divider} />
 
+        {sale.customer ? (
+          <Text style={styles.metaLine}>Customer: {sale.customer.name}</Text>
+        ) : null}
+        <Text style={styles.metaLine}>
+          Paid: {formatMoneyDisplay(sale.amountPaid)}
+        </Text>
+        <Text style={styles.metaLine}>
+          Balance Due: {formatMoneyDisplay(sale.outstandingAmount)}
+        </Text>
+        <Text style={styles.metaLine}>
+          Status: {formatSalePaymentStatus(sale.paymentStatus)}
+        </Text>
         <Text style={styles.metaLine}>
           Payment: {formatPaymentMethod(sale.paymentMethod)}
         </Text>

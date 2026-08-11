@@ -22,6 +22,7 @@ import {
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/business";
 import { FormButton, FormMessage } from "@/components/AuthScreen";
+import { usePosCustomer } from "@/customers";
 import {
   addQuantities,
   formatQuantityDisplay,
@@ -31,7 +32,7 @@ import {
 import { formatMoneyDisplay, formatProductPrice } from "@/products/money";
 import type { Product } from "@/products/types";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
-import { saleDetailHref } from "@/navigation/hrefs";
+import { customerSelectHref, saleDetailHref } from "@/navigation/hrefs";
 import {
   PAYMENT_METHODS,
   compareMoney,
@@ -70,12 +71,15 @@ export default function NewSaleScreen() {
     clearCart,
     setAvailableStock,
   } = useSaleCart();
+  const { selectedCustomer, clearSelectedCustomer } = usePosCustomer();
 
   const [search, setSearch] = useState("");
   const [products, setProducts] = useState<PosProduct[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productError, setProductError] = useState<string | undefined>();
   const [discountAmount, setDiscountAmount] = useState("0");
+  const [amountPaid, setAmountPaid] = useState("");
+  const [amountPaidTouched, setAmountPaidTouched] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [checkoutError, setCheckoutError] = useState<string | undefined>();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -154,6 +158,36 @@ export default function NewSaleScreen() {
     return subtractMoney(subtotal, discountAmount);
   }, [subtotal, discountAmount]);
 
+  const effectiveAmountPaid = useMemo(() => {
+    if (amountPaid.trim() === "" && total) {
+      return total;
+    }
+
+    if (!isValidMoneyInput(amountPaid)) {
+      return null;
+    }
+
+    return amountPaid;
+  }, [amountPaid, total]);
+
+  const balanceDue = useMemo(() => {
+    if (!total || !effectiveAmountPaid) {
+      return null;
+    }
+
+    return subtractMoney(total, effectiveAmountPaid);
+  }, [total, effectiveAmountPaid]);
+
+  const isCreditSale = balanceDue !== null && compareMoney(balanceDue, "0") === 1;
+  const requiresPaymentMethod =
+    effectiveAmountPaid !== null && compareMoney(effectiveAmountPaid, "0") === 1;
+
+  useEffect(() => {
+    if (total && !amountPaidTouched) {
+      setAmountPaid(total);
+    }
+  }, [total, amountPaidTouched]);
+
   const handleAddProduct = (product: PosProduct) => {
     addItem({
       productId: product.productId,
@@ -215,6 +249,26 @@ export default function NewSaleScreen() {
       return;
     }
 
+    if (!effectiveAmountPaid) {
+      setCheckoutError("Enter a valid amount paid.");
+      return;
+    }
+
+    if (total && compareMoney(effectiveAmountPaid, total) === 1) {
+      setCheckoutError("Amount paid cannot exceed total.");
+      return;
+    }
+
+    if (isCreditSale && !selectedCustomer) {
+      setCheckoutError("Select a customer for credit sales with a balance due.");
+      return;
+    }
+
+    if (requiresPaymentMethod && !paymentMethod) {
+      setCheckoutError("Select a payment method for the amount being paid now.");
+      return;
+    }
+
     for (const item of cartItems) {
       if (quantityExceedsStock(item.quantity, item.availableStock)) {
         setCheckoutError(
@@ -235,10 +289,13 @@ export default function NewSaleScreen() {
           quantity: item.quantity,
         })),
         discountAmount,
-        paymentMethod,
+        customerId: selectedCustomer?.id,
+        amountPaid: effectiveAmountPaid,
+        ...(requiresPaymentMethod ? { paymentMethod } : {}),
       });
 
       clearCart();
+      clearSelectedCustomer();
       router.replace({
         pathname: "/(app)/sales/[saleId]",
         params: {
@@ -392,29 +449,99 @@ export default function NewSaleScreen() {
           </Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Payment Method</Text>
-        <View style={styles.paymentMethods}>
-          {PAYMENT_METHODS.map((method) => (
-            <Pressable
-              key={method.value}
-              accessibilityRole="button"
-              onPress={() => setPaymentMethod(method.value)}
-              style={[
-                styles.paymentButton,
-                paymentMethod === method.value && styles.paymentButtonActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.paymentButtonText,
-                  paymentMethod === method.value && styles.paymentButtonTextActive,
-                ]}
-              >
-                {method.label}
+        <Text style={styles.sectionTitle}>Customer</Text>
+        <View style={styles.customerSection}>
+          {selectedCustomer ? (
+            <View style={styles.selectedCustomer}>
+              <Text style={styles.selectedCustomerName}>
+                {selectedCustomer.name}
               </Text>
+              {selectedCustomer.phone ? (
+                <Text style={styles.selectedCustomerMeta}>
+                  {selectedCustomer.phone}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>Walk-in customer (no account)</Text>
+          )}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push(customerSelectHref)}
+            style={({ pressed }) => [
+              styles.selectCustomerButton,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            <Text style={styles.selectCustomerText}>
+              {selectedCustomer ? "Change Customer" : "Select Customer"}
+            </Text>
+          </Pressable>
+          {selectedCustomer ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={clearSelectedCustomer}
+              style={styles.clearCustomerLink}
+            >
+              <Text style={styles.clearCustomerText}>Clear</Text>
             </Pressable>
-          ))}
+          ) : null}
         </View>
+
+        <View style={styles.discountSection}>
+          <Text style={styles.summaryLabel}>Amount Paid Now</Text>
+          <TextInput
+            value={amountPaid}
+            onChangeText={(value) => {
+              setAmountPaidTouched(true);
+              setAmountPaid(value);
+            }}
+            keyboardType="decimal-pad"
+            style={styles.discountInput}
+            placeholder={total ?? "0.00"}
+          />
+        </View>
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Balance Due</Text>
+          <Text
+            style={[
+              styles.summaryValue,
+              isCreditSale && styles.balanceDueValue,
+            ]}
+          >
+            {formatMoneyDisplay(balanceDue ?? "0.00")}
+          </Text>
+        </View>
+
+        {requiresPaymentMethod ? (
+          <>
+            <Text style={styles.sectionTitle}>Payment Method</Text>
+            <View style={styles.paymentMethods}>
+              {PAYMENT_METHODS.map((method) => (
+                <Pressable
+                  key={method.value}
+                  accessibilityRole="button"
+                  onPress={() => setPaymentMethod(method.value)}
+                  style={[
+                    styles.paymentButton,
+                    paymentMethod === method.value && styles.paymentButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.paymentButtonText,
+                      paymentMethod === method.value &&
+                        styles.paymentButtonTextActive,
+                    ]}
+                  >
+                    {method.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : null}
 
         <FormButton
           label={isCheckingOut ? "Processing..." : "Complete Sale"}
@@ -606,5 +733,49 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.9,
+  },
+  customerSection: {
+    gap: 10,
+  },
+  selectedCustomer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 14,
+    gap: 4,
+  },
+  selectedCustomerName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  selectedCustomerMeta: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  selectCustomerButton: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#0F766E",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  selectCustomerText: {
+    color: "#0F766E",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  clearCustomerLink: {
+    alignSelf: "flex-start",
+  },
+  clearCustomerText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  balanceDueValue: {
+    color: "#DC2626",
   },
 });

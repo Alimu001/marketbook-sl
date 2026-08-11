@@ -83,6 +83,22 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "Sale not found.";
       case "EMPTY_SALE":
         return "Add at least one item before completing the sale.";
+      case "CUSTOMER_NOT_FOUND":
+        return "Customer not found.";
+      case "CUSTOMER_INACTIVE":
+        return "This customer is archived and cannot be used for credit sales.";
+      case "CUSTOMER_REQUIRED_FOR_CREDIT":
+        return "Select a customer for credit sales with an outstanding balance.";
+      case "INVALID_AMOUNT_PAID":
+        return "Amount paid must be between zero and the sale total.";
+      case "DEBT_NOT_FOUND":
+        return "Debt record not found.";
+      case "DEBT_ALREADY_PAID":
+        return "This debt has already been fully paid.";
+      case "INVALID_PAYMENT_AMOUNT":
+        return "Enter a valid payment amount greater than zero.";
+      case "PAYMENT_EXCEEDS_OUTSTANDING":
+        return "Payment amount exceeds the outstanding balance.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }
