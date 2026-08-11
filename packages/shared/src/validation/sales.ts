@@ -36,6 +36,8 @@ export const createSaleItemSchema = z
   })
   .strict();
 
+export const salePaymentStatuses = ["PAID", "PARTIALLY_PAID", "UNPAID"] as const;
+
 export const createSaleSchema = z
   .object({
     items: z
@@ -43,9 +45,11 @@ export const createSaleSchema = z
       .min(1, "At least one item is required")
       .max(MAX_SALE_ITEMS, `A sale cannot exceed ${MAX_SALE_ITEMS} items`),
     discountAmount: moneyStringSchema.optional().default("0"),
+    customerId: z.string().uuid("Customer ID must be a valid UUID").optional(),
+    amountPaid: moneyStringSchema.optional(),
     paymentMethod: z.enum(paymentMethods, {
       message: `Payment method must be one of: ${paymentMethods.join(", ")}`,
-    }),
+    }).optional(),
     notes: z.string().trim().max(MAX_NOTES_LENGTH).optional(),
   })
   .strict();
@@ -54,6 +58,7 @@ export const listSalesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   paymentMethod: z.enum(paymentMethods).optional(),
+  paymentStatus: z.enum(salePaymentStatuses).optional(),
   from: z
     .string()
     .datetime({ message: "from must be a valid ISO datetime" })

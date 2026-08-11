@@ -28,9 +28,22 @@ export type {
 export type {
   CreateSaleResponse,
   PaymentMethod,
+  SaleCustomerSummary,
   SaleDetailResponse,
   SaleItemResponse,
   SaleListItem,
+  SalePaymentStatus,
   SaleStatus,
   SaleUserSummary,
 } from "./sales.js";
+
+export type {
+  BusinessDebtListItem,
+  CustomerDebtSummary,
+  CustomerDetail,
+  CustomerHistoryResponse,
+  CustomerSummary,
+  DebtPaymentResponse,
+  DebtStatus,
+  RecordDebtPaymentResponse,
+} from "./customer.js";

@@ -17,6 +17,11 @@ import { formatQuantity, toQuantityDecimal } from "../../lib/quantity.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
 import { lockInventoryBalance } from "../inventory/inventory.service.js";
+import { assertCustomerInBusiness } from "../customers/customer.service.js";
+import {
+  deriveDebtStatus,
+  deriveSalePaymentStatus,
+} from "../debts/debt.service.js";
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -105,9 +110,14 @@ function toSaleDetailResponse(
     subtotal: Prisma.Decimal;
     discountAmount: Prisma.Decimal;
     totalAmount: Prisma.Decimal;
-    paymentMethod: PaymentMethod;
+    amountPaid: Prisma.Decimal;
+    outstandingAmount: Prisma.Decimal;
+    paymentStatus: "PAID" | "PARTIALLY_PAID" | "UNPAID";
+    paymentMethod: PaymentMethod | null;
     status: "COMPLETED" | "VOIDED";
     notes: string | null;
+    customerId: string | null;
+    customerNameSnapshot: string | null;
     createdAt: Date;
     updatedAt: Date;
     createdBy: {
@@ -115,6 +125,10 @@ function toSaleDetailResponse(
       name: string | null;
       email: string;
     };
+    customer?: {
+      id: string;
+      name: string;
+    } | null;
     items: Array<{
       id: string;
       productId: string;
@@ -129,6 +143,9 @@ function toSaleDetailResponse(
     }>;
   },
 ): SaleDetailResponse {
+  const customerName =
+    sale.customerNameSnapshot ?? sale.customer?.name ?? null;
+
   return {
     id: sale.id,
     businessId: sale.businessId,
@@ -136,9 +153,16 @@ function toSaleDetailResponse(
     subtotal: formatMoney(sale.subtotal),
     discountAmount: formatMoney(sale.discountAmount),
     totalAmount: formatMoney(sale.totalAmount),
+    amountPaid: formatMoney(sale.amountPaid),
+    outstandingAmount: formatMoney(sale.outstandingAmount),
+    paymentStatus: sale.paymentStatus,
     paymentMethod: sale.paymentMethod,
     status: sale.status,
     notes: sale.notes,
+    customer:
+      sale.customerId && customerName
+        ? { id: sale.customerId, name: customerName }
+        : null,
     createdBy: {
       id: sale.createdBy.id,
       name: sale.createdBy.name,
@@ -259,17 +283,74 @@ export async function createSale(
     }
 
     const totalAmount = subtractMoney(subtotal, discountAmount);
+
+    const amountPaid =
+      input.amountPaid !== undefined
+        ? toMoneyDecimalFromString(input.amountPaid)
+        : totalAmount;
+
+    if (amountPaid.isNegative()) {
+      throw new AppError(400, "Invalid amount paid", "INVALID_AMOUNT_PAID");
+    }
+
+    if (amountPaid.gt(totalAmount)) {
+      throw new AppError(
+        400,
+        "Amount paid cannot exceed total",
+        "INVALID_AMOUNT_PAID",
+      );
+    }
+
+    const outstandingAmount = subtractMoney(totalAmount, amountPaid);
+
+    if (outstandingAmount.gt(0) && !input.customerId) {
+      throw new AppError(
+        400,
+        "Customer is required for credit sales",
+        "CUSTOMER_REQUIRED_FOR_CREDIT",
+      );
+    }
+
+    if (amountPaid.gt(0) && !input.paymentMethod) {
+      throw new AppError(
+        400,
+        "Payment method is required when amount is paid",
+        "VALIDATION_ERROR",
+      );
+    }
+
+    let customerSnapshot: { id: string; name: string } | null = null;
+
+    if (input.customerId) {
+      const requireActive = outstandingAmount.gt(0);
+      const customer = await assertCustomerInBusiness(
+        businessId,
+        input.customerId,
+        { requireActive },
+      );
+      customerSnapshot = { id: customer.id, name: customer.name };
+    }
+
+    const paymentStatus = deriveSalePaymentStatus(
+      amountPaid,
+      outstandingAmount,
+    );
     const receiptNumber = await generateReceiptNumber(tx, businessId);
 
     const createdSale = await tx.sale.create({
       data: {
         businessId,
         createdByUserId,
+        customerId: customerSnapshot?.id ?? null,
+        customerNameSnapshot: customerSnapshot?.name ?? null,
         receiptNumber,
         subtotal,
         discountAmount,
         totalAmount,
-        paymentMethod: input.paymentMethod,
+        amountPaid,
+        outstandingAmount,
+        paymentMethod: amountPaid.gt(0) ? input.paymentMethod! : null,
+        paymentStatus,
         status: "COMPLETED",
         notes: input.notes ?? null,
         items: {
@@ -293,11 +374,31 @@ export async function createSale(
             email: true,
           },
         },
+        customer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         items: {
           orderBy: { createdAt: "asc" },
         },
       },
     });
+
+    if (outstandingAmount.gt(0) && customerSnapshot) {
+      await tx.customerDebt.create({
+        data: {
+          businessId,
+          customerId: customerSnapshot.id,
+          saleId: createdSale.id,
+          originalAmount: outstandingAmount,
+          amountPaid: new Prisma.Decimal(0),
+          outstandingAmount,
+          status: deriveDebtStatus(outstandingAmount, new Prisma.Decimal(0)),
+        },
+      });
+    }
 
     for (const line of preparedLines) {
       const balance = lockedBalances.get(line.product.id)!;
@@ -339,6 +440,7 @@ export async function listSales(businessId: string, query: ListSalesQuery) {
   const where = {
     businessId,
     ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
+    ...(query.paymentStatus ? { paymentStatus: query.paymentStatus } : {}),
     ...(query.from || query.to
       ? {
           createdAt: {
@@ -363,6 +465,12 @@ export async function listSales(businessId: string, query: ListSalesQuery) {
             email: true,
           },
         },
+        customer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         _count: {
           select: { items: true },
         },
@@ -379,7 +487,17 @@ export async function listSales(businessId: string, query: ListSalesQuery) {
         id: sale.id,
         receiptNumber: sale.receiptNumber,
         totalAmount: formatMoney(sale.totalAmount),
+        amountPaid: formatMoney(sale.amountPaid),
+        outstandingAmount: formatMoney(sale.outstandingAmount),
+        paymentStatus: sale.paymentStatus,
         paymentMethod: sale.paymentMethod,
+        customer:
+          sale.customerId && (sale.customerNameSnapshot ?? sale.customer?.name)
+            ? {
+                id: sale.customerId,
+                name: sale.customerNameSnapshot ?? sale.customer!.name,
+              }
+            : null,
         createdBy: {
           id: sale.createdBy.id,
           name: sale.createdBy.name,
@@ -410,6 +528,12 @@ export async function getSaleDetail(
           id: true,
           name: true,
           email: true,
+        },
+      },
+      customer: {
+        select: {
+          id: true,
+          name: true,
         },
       },
       items: {

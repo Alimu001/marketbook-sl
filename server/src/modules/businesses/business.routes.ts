@@ -14,6 +14,8 @@ import * as businessController from "./business.controller.js";
 import { productsRouter } from "../products/product.routes.js";
 import { inventoryListRouter } from "../inventory/inventory.routes.js";
 import { salesRouter } from "../sales/sales.routes.js";
+import { customersRouter } from "../customers/customer.routes.js";
+import { businessDebtsRouter } from "../debts/debt.routes.js";
 
 export const businessesRouter = Router();
 
@@ -53,5 +55,7 @@ businessScopedRouter.delete(
 businessScopedRouter.use("/inventory", inventoryListRouter);
 businessScopedRouter.use("/products", productsRouter);
 businessScopedRouter.use("/sales", salesRouter);
+businessScopedRouter.use("/customers", customersRouter);
+businessScopedRouter.use("/debts", businessDebtsRouter);
 
 businessesRouter.use("/:businessId", businessScopedRouter);

@@ -48,7 +48,26 @@ export {
   createSaleItemSchema,
   listSalesQuerySchema,
   paymentMethods,
+  salePaymentStatuses,
   type CreateSaleInput,
   type CreateSaleItemInput,
   type ListSalesQuery,
 } from "./sales.js";
+
+export {
+  createCustomerSchema,
+  updateCustomerSchema,
+  listCustomersQuerySchema,
+  listCustomerDebtsQuerySchema,
+  listBusinessDebtsQuerySchema,
+  recordDebtPaymentSchema,
+  listDebtPaymentsQuerySchema,
+  debtStatuses,
+  type CreateCustomerInput,
+  type UpdateCustomerInput,
+  type ListCustomersQuery,
+  type ListCustomerDebtsQuery,
+  type ListBusinessDebtsQuery,
+  type RecordDebtPaymentInput,
+  type ListDebtPaymentsQuery,
+} from "./customer.js";

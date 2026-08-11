@@ -2,6 +2,13 @@ export type SaleStatus = "COMPLETED" | "VOIDED";
 
 export type PaymentMethod = "CASH" | "MOBILE_MONEY" | "BANK_TRANSFER";
 
+export type SalePaymentStatus = "PAID" | "PARTIALLY_PAID" | "UNPAID";
+
+export interface SaleCustomerSummary {
+  id: string;
+  name: string;
+}
+
 export interface SaleUserSummary {
   id: string;
   name: string | null;
@@ -12,7 +19,11 @@ export interface SaleListItem {
   id: string;
   receiptNumber: string;
   totalAmount: string;
-  paymentMethod: PaymentMethod;
+  amountPaid: string;
+  outstandingAmount: string;
+  paymentStatus: SalePaymentStatus;
+  paymentMethod: PaymentMethod | null;
+  customer: SaleCustomerSummary | null;
   createdBy: SaleUserSummary;
   itemCount: number;
   createdAt: string;
@@ -38,9 +49,13 @@ export interface SaleDetailResponse {
   subtotal: string;
   discountAmount: string;
   totalAmount: string;
-  paymentMethod: PaymentMethod;
+  amountPaid: string;
+  outstandingAmount: string;
+  paymentStatus: SalePaymentStatus;
+  paymentMethod: PaymentMethod | null;
   status: SaleStatus;
   notes: string | null;
+  customer: SaleCustomerSummary | null;
   createdBy: SaleUserSummary;
   items: SaleItemResponse[];
   createdAt: string;
