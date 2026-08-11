@@ -2,38 +2,99 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/auth";
+import { formatBusinessRole, useBusiness } from "@/business";
 import { FormButton } from "@/components/AuthScreen";
+import { appHref, businessCreateHref, businessSelectHref } from "@/navigation/hrefs";
+
+const QUICK_ACTIONS = [
+  "Products",
+  "Sales",
+  "Customers",
+  "Expenses",
+] as const;
 
 export default function AppHomeScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  const { currentBusiness, businesses } = useBusiness();
 
   const handleLogout = async () => {
     await logout();
     router.replace("/");
   };
 
+  if (!currentBusiness) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <View style={styles.content}>
+            <Text style={styles.brand}>MarketBook SL</Text>
+            <Text style={styles.title}>Welcome to MarketBook SL</Text>
+            <Text style={styles.subtitle}>
+              Set up your first business to start managing sales, products, and
+              records.
+            </Text>
+          </View>
+
+          <View style={styles.actions}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push(businessCreateHref)}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>Create Business</Text>
+            </Pressable>
+
+            {businesses.length > 1 ? (
+              <FormButton
+                label="Choose a Business"
+                variant="secondary"
+                onPress={() => router.push(businessSelectHref)}
+              />
+            ) : null}
+
+            <FormButton label="Sign Out" onPress={() => void handleLogout()} />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.content}>
-          <Text style={styles.title}>Welcome to MarketBook SL</Text>
-          <Text style={styles.subtitle}>
-            You are signed in{user?.name ? ` as ${user.name}` : ""}.
+          <Text style={styles.brand}>MarketBook SL</Text>
+          <Text style={styles.businessName}>{currentBusiness.name}</Text>
+          <Text style={styles.roleLine}>
+            Role: {formatBusinessRole(currentBusiness.role)}
           </Text>
+          <Text style={styles.subtitle}>Welcome to your business.</Text>
+
+          <View style={styles.quickActionsSection}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <View style={styles.quickActionsGrid}>
+              {QUICK_ACTIONS.map((action) => (
+                <Pressable
+                  key={action}
+                  accessibilityRole="button"
+                  disabled
+                  style={({ pressed }) => [
+                    styles.quickActionButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <Text style={styles.quickActionText}>{action}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
         </View>
 
         <View style={styles.actions}>
-          <Pressable
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.buttonPressed,
-            ]}
-          >
-            <Text style={styles.secondaryButtonText}>Create Business</Text>
-          </Pressable>
-
           <FormButton label="Sign Out" onPress={() => void handleLogout()} />
         </View>
       </View>
@@ -54,32 +115,77 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: "center",
+    paddingTop: 16,
     gap: 12,
+  },
+  brand: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F766E",
+    letterSpacing: 0.3,
   },
   title: {
     fontSize: 30,
     fontWeight: "700",
     color: "#0F172A",
   },
+  businessName: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  roleLine: {
+    fontSize: 16,
+    color: "#475569",
+    fontWeight: "600",
+  },
   subtitle: {
     fontSize: 18,
     lineHeight: 26,
     color: "#475569",
   },
+  sectionTitle: {
+    marginTop: 12,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  quickActionsSection: {
+    gap: 12,
+  },
+  quickActionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  quickActionButton: {
+    minWidth: "46%",
+    flexGrow: 1,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    opacity: 0.65,
+  },
+  quickActionText: {
+    color: "#64748B",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   actions: {
     gap: 12,
   },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#0F766E",
+  primaryButton: {
+    backgroundColor: "#0F766E",
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
   },
-  secondaryButtonText: {
-    color: "#0F766E",
+  primaryButtonText: {
+    color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "600",
   },

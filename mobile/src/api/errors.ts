@@ -38,6 +38,10 @@ export function getUserFacingErrorMessage(error: unknown): string {
       case "UNAUTHORIZED":
       case "INVALID_TOKEN":
         return "Your session has expired. Please sign in again.";
+      case "FORBIDDEN":
+        return "You do not have permission to perform this action.";
+      case "NOT_FOUND":
+        return "The requested resource could not be found.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }
