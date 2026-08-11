@@ -73,3 +73,16 @@ export type {
   ExpenseListItem,
   ExpenseUserSummary,
 } from "./expense.js";
+
+export type {
+  DailyActivityReport,
+  DashboardSummary,
+  ExpensesReportResponse,
+  InventoryReportResponse,
+  PayablesReportResponse,
+  PurchasesReportResponse,
+  ReceivablesReportResponse,
+  ReportPeriod,
+  SalesReportResponse,
+  TopProductsReportResponse,
+} from "./report.js";

@@ -127,6 +127,10 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "Enter a valid expense amount greater than zero.";
       case "INVALID_EXPENSE_DATE":
         return "Enter a valid expense date (YYYY-MM-DD).";
+      case "INVALID_REPORT_DATE_RANGE":
+        return "Enter a valid report date range (YYYY-MM-DD).";
+      case "REPORT_RANGE_TOO_LARGE":
+        return "Report date range cannot exceed 2 years.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }

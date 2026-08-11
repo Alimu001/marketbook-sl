@@ -21,6 +21,7 @@ import { purchasesRouter } from "../purchases/purchase.routes.js";
 import { businessPayablesRouter } from "../payables/payable.routes.js";
 import { expenseCategoriesRouter } from "../expenses/expense-category.routes.js";
 import { expensesRouter } from "../expenses/expense.routes.js";
+import { reportsRouter } from "../reports/reports.routes.js";
 
 export const businessesRouter = Router();
 
@@ -67,5 +68,6 @@ businessScopedRouter.use("/purchases", purchasesRouter);
 businessScopedRouter.use("/payables", businessPayablesRouter);
 businessScopedRouter.use("/expense-categories", expenseCategoriesRouter);
 businessScopedRouter.use("/expenses", expensesRouter);
+businessScopedRouter.use("/reports", reportsRouter);
 
 businessesRouter.use("/:businessId", businessScopedRouter);

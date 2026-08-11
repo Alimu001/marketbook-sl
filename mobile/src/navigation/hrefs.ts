@@ -22,6 +22,14 @@ export const purchasesHref = "/(app)/purchases" as Href;
 export const purchaseNewHref = "/(app)/purchases/new" as Href;
 export const payablesHref = "/(app)/payables" as Href;
 export const expensesHref = "/(app)/expenses" as Href;
+export const reportsHref = "/(app)/reports" as Href;
+export const reportSalesHref = "/(app)/reports/sales" as Href;
+export const reportProductsHref = "/(app)/reports/products" as Href;
+export const reportPurchasesHref = "/(app)/reports/purchases" as Href;
+export const reportExpensesHref = "/(app)/reports/expenses" as Href;
+export const reportReceivablesHref = "/(app)/reports/receivables" as Href;
+export const reportPayablesHref = "/(app)/reports/payables" as Href;
+export const reportInventoryHref = "/(app)/reports/inventory" as Href;
 export const expenseCreateHref = "/(app)/expenses/create" as Href;
 export const expenseCategoriesHref = "/(app)/expenses/categories" as Href;
 

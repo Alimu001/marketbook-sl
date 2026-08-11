@@ -327,6 +327,10 @@ export function expensesPath(businessId: string, suffix = "") {
   return `/api/v1/businesses/${businessId}/expenses${suffix}`;
 }
 
+export function reportsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/reports${suffix}`;
+}
+
 export function productInventoryPath(
   businessId: string,
   productId: string,
