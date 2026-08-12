@@ -51,6 +51,162 @@ export async function resetBizTestData(): Promise<void> {
   });
 
   if (testBusinessIds.length > 0) {
+    await prisma.supplierPayment.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.supplierPayable.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.supplierReturnItem.deleteMany({
+      where: {
+        supplierReturn: {
+          businessId: { in: testBusinessIds },
+        },
+      },
+    });
+
+    await prisma.supplierReturn.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.supplierReturnSequence.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.purchaseItem.deleteMany({
+      where: {
+        purchase: {
+          businessId: {
+            in: testBusinessIds,
+          },
+        },
+      },
+    });
+
+    await prisma.purchaseVoid.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.purchase.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.purchaseNumberSequence.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.supplier.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.expense.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.expenseCategory.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.debtPayment.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.customerWalletTransaction.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.customerWallet.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.saleRefundItem.deleteMany({
+      where: {
+        refund: {
+          businessId: { in: testBusinessIds },
+        },
+      },
+    });
+
+    await prisma.saleRefund.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.saleRefundSequence.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.saleVoid.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.customerDebt.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.saleItem.deleteMany({
+      where: {
+        sale: {
+          businessId: {
+            in: testBusinessIds,
+          },
+        },
+      },
+    });
+
+    await prisma.sale.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.saleReceiptSequence.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.customer.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.inventoryTransaction.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
+    await prisma.inventoryBalance.deleteMany({
+      where: {
+        businessId: {
+          in: testBusinessIds,
+        },
+      },
+    });
+
     await prisma.businessMember.deleteMany({
       where: {
         businessId: {
@@ -65,6 +221,16 @@ export async function resetBizTestData(): Promise<void> {
           in: testBusinessIds,
         },
       },
+    });
+  }
+
+  if (testUserIds.length > 0) {
+    await prisma.customerWalletTransaction.deleteMany({
+      where: { createdByUserId: { in: testUserIds } },
+    });
+
+    await prisma.inventoryTransaction.deleteMany({
+      where: { performedByUserId: { in: testUserIds } },
     });
   }
 
@@ -153,6 +319,18 @@ export const sampleProduct = {
   sellingPrice: 120,
 };
 
+export async function createProductAs(
+  app: Express,
+  accessToken: string,
+  businessId: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return request(app)
+    .post(productPath(businessId))
+    .set(authHeader(accessToken))
+    .send({ ...sampleProduct, ...overrides });
+}
+
 export async function setupOwnerBusiness(app: Express, label: string) {
   const owner = await createTestUser(app, label);
   const businessResponse = await createBusiness(
@@ -169,6 +347,86 @@ export async function setupOwnerBusiness(app: Express, label: string) {
 
 export function productPath(businessId: string, suffix = "") {
   return `/api/v1/businesses/${businessId}/products${suffix}`;
+}
+
+export function inventoryPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/inventory${suffix}`;
+}
+
+export function salesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/sales${suffix}`;
+}
+
+export function customersPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/customers${suffix}`;
+}
+
+export function debtsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/debts${suffix}`;
+}
+
+export function suppliersPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/suppliers${suffix}`;
+}
+
+export function purchasesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/purchases${suffix}`;
+}
+
+export function payablesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/payables${suffix}`;
+}
+
+export function expenseCategoriesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/expense-categories${suffix}`;
+}
+
+export function expensesPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/expenses${suffix}`;
+}
+
+export function reportsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/reports${suffix}`;
+}
+
+export function refundsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/refunds${suffix}`;
+}
+
+export function saleReversalPath(
+  businessId: string,
+  saleId: string,
+  suffix = "",
+) {
+  return `/api/v1/businesses/${businessId}/sales/${saleId}${suffix}`;
+}
+
+export function purchaseReversalPath(
+  businessId: string,
+  purchaseId: string,
+  suffix = "",
+) {
+  return `/api/v1/businesses/${businessId}/purchases/${purchaseId}${suffix}`;
+}
+
+export function supplierReturnsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/supplier-returns${suffix}`;
+}
+
+export function walletPath(businessId: string, customerId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/customers/${customerId}/wallet${suffix}`;
+}
+
+export function businessWalletsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/wallets${suffix}`;
+}
+
+export function productInventoryPath(
+  businessId: string,
+  productId: string,
+  suffix = "",
+) {
+  return `/api/v1/businesses/${businessId}/products/${productId}/inventory${suffix}`;
 }
 
 export async function createUserWithTokenDirect(
