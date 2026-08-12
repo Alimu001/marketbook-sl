@@ -9,6 +9,7 @@ import { formatMoney, toMoneyDecimal } from "../../lib/money.js";
 import { prisma } from "../../lib/prisma.js";
 import { mapPrismaError } from "../../lib/prismaErrors.js";
 import { AppError } from "../../middleware/errorHandler.js";
+import { createInventoryBalanceForProduct } from "../inventory/inventory.service.js";
 
 function toProductResponse(product: Product): ProductResponse {
   return {
@@ -33,18 +34,23 @@ export async function createProduct(
   input: CreateProductInput,
 ): Promise<ProductResponse> {
   try {
-    const product = await prisma.product.create({
-      data: {
-        businessId,
-        name: input.name,
-        description: input.description ?? null,
-        sku: input.sku ?? null,
-        barcode: input.barcode ?? null,
-        category: input.category ?? null,
-        unit: input.unit,
-        costPrice: toMoneyDecimal(input.costPrice),
-        sellingPrice: toMoneyDecimal(input.sellingPrice),
-      },
+    const product = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          businessId,
+          name: input.name,
+          description: input.description ?? null,
+          sku: input.sku ?? null,
+          barcode: input.barcode ?? null,
+          category: input.category ?? null,
+          unit: input.unit,
+          costPrice: toMoneyDecimal(input.costPrice),
+          sellingPrice: toMoneyDecimal(input.sellingPrice),
+        },
+      });
+
+      await createInventoryBalanceForProduct(tx, businessId, created.id);
+      return created;
     });
 
     return toProductResponse(product);

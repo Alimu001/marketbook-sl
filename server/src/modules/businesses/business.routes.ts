@@ -12,6 +12,17 @@ import {
 import { validate } from "../../middleware/validate.js";
 import * as businessController from "./business.controller.js";
 import { productsRouter } from "../products/product.routes.js";
+import { inventoryListRouter } from "../inventory/inventory.routes.js";
+import { salesRouter } from "../sales/sales.routes.js";
+import { customersRouter } from "../customers/customer.routes.js";
+import { businessDebtsRouter } from "../debts/debt.routes.js";
+import { suppliersRouter } from "../suppliers/supplier.routes.js";
+import { purchasesRouter } from "../purchases/purchase.routes.js";
+import { businessPayablesRouter } from "../payables/payable.routes.js";
+import { expenseCategoriesRouter } from "../expenses/expense-category.routes.js";
+import { expensesRouter } from "../expenses/expense.routes.js";
+import { reportsRouter } from "../reports/reports.routes.js";
+import { refundsRouter, supplierReturnsRouter } from "../reversals/reversal.routes.js";
 
 export const businessesRouter = Router();
 
@@ -48,6 +59,18 @@ businessScopedRouter.delete(
   businessController.removeMember,
 );
 
+businessScopedRouter.use("/inventory", inventoryListRouter);
 businessScopedRouter.use("/products", productsRouter);
+businessScopedRouter.use("/sales", salesRouter);
+businessScopedRouter.use("/customers", customersRouter);
+businessScopedRouter.use("/debts", businessDebtsRouter);
+businessScopedRouter.use("/suppliers", suppliersRouter);
+businessScopedRouter.use("/purchases", purchasesRouter);
+businessScopedRouter.use("/payables", businessPayablesRouter);
+businessScopedRouter.use("/expense-categories", expenseCategoriesRouter);
+businessScopedRouter.use("/expenses", expensesRouter);
+businessScopedRouter.use("/reports", reportsRouter);
+businessScopedRouter.use("/refunds", refundsRouter);
+businessScopedRouter.use("/supplier-returns", supplierReturnsRouter);
 
 businessesRouter.use("/:businessId", businessScopedRouter);
