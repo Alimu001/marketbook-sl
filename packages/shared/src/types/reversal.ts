@@ -27,6 +27,8 @@ export interface SaleRefundResponse {
   refundAmount: string;
   receivableReduction: string;
   cashReturnAmount: string;
+  walletCreditAmount: string;
+  refundDestination: import("./wallet.js").RefundDestination | null;
   refundPaymentMethod: PaymentMethod | null;
   reason: string;
   notes: string | null;

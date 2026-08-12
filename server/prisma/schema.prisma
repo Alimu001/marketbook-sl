@@ -54,6 +54,20 @@ enum DebtStatus {
   VOIDED
 }
 
+enum CustomerWalletTransactionType {
+  REFUND_CREDIT
+  SALE_PAYMENT
+  MANUAL_CREDIT
+  MANUAL_DEBIT
+}
+
+enum RefundDestination {
+  CASH
+  MOBILE_MONEY
+  BANK_TRANSFER
+  WALLET
+}
+
 enum PurchaseStatus {
   COMPLETED
   VOIDED
@@ -79,6 +93,7 @@ model User {
   saleVoidsCreated         SaleVoid[]           @relation("SaleVoidCreatedBy")
   purchaseVoidsCreated     PurchaseVoid[]       @relation("PurchaseVoidCreatedBy")
   supplierReturnsCreated   SupplierReturn[]     @relation("SupplierReturnCreatedBy")
+  walletTransactionsCreated CustomerWalletTransaction[] @relation("WalletTransactionCreatedBy")
 
   @@index([email])
 }
@@ -111,6 +126,8 @@ model Business {
   purchaseVoids         PurchaseVoid[]
   supplierReturns       SupplierReturn[]
   supplierReturnSequences SupplierReturnSequence[]
+  customerWallets       CustomerWallet[]
+  customerWalletTransactions CustomerWalletTransaction[]
 
   @@index([name])
 }
@@ -231,6 +248,7 @@ model Sale {
   discountAmount      Decimal            @default(0) @db.Decimal(19, 4)
   totalAmount         Decimal            @db.Decimal(19, 4)
   amountPaid          Decimal            @default(0) @db.Decimal(19, 4)
+  walletAmountUsed    Decimal            @default(0) @db.Decimal(19, 4)
   outstandingAmount   Decimal            @default(0) @db.Decimal(19, 4)
   paymentMethod       PaymentMethod?
   paymentStatus       SalePaymentStatus  @default(PAID)
@@ -285,6 +303,8 @@ model SaleRefund {
   refundAmount        Decimal        @db.Decimal(19, 4)
   receivableReduction Decimal        @default(0) @db.Decimal(19, 4)
   cashReturnAmount    Decimal        @default(0) @db.Decimal(19, 4)
+  walletCreditAmount  Decimal        @default(0) @db.Decimal(19, 4)
+  refundDestination   RefundDestination?
   refundPaymentMethod PaymentMethod?
   reason              String
   notes               String?
@@ -382,6 +402,8 @@ model Customer {
   sales        Sale[]
   debts        CustomerDebt[]
   debtPayments DebtPayment[]
+  wallet       CustomerWallet?
+  walletTransactions CustomerWalletTransaction[]
 
   @@index([businessId])
   @@index([businessId, name])
@@ -435,6 +457,52 @@ model DebtPayment {
   @@index([customerId])
   @@index([debtId])
   @@index([createdAt])
+}
+
+model CustomerWallet {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  customerId String   @unique @db.Uuid
+  balance    Decimal  @default(0) @db.Decimal(19, 4)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business     Business                    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer     Customer                    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  transactions CustomerWalletTransaction[]
+
+  @@unique([businessId, customerId])
+  @@index([businessId])
+  @@index([customerId])
+  @@index([businessId, balance])
+}
+
+model CustomerWalletTransaction {
+  id              String                        @id @default(uuid()) @db.Uuid
+  businessId      String                        @db.Uuid
+  customerId      String                        @db.Uuid
+  walletId        String                        @db.Uuid
+  type            CustomerWalletTransactionType
+  amount          Decimal                       @db.Decimal(19, 4)
+  balanceBefore   Decimal                       @db.Decimal(19, 4)
+  balanceAfter    Decimal                       @db.Decimal(19, 4)
+  referenceType   String?
+  referenceId     String?                       @db.Uuid
+  reason          String?
+  notes           String?
+  createdByUserId String                        @db.Uuid
+  createdAt       DateTime                      @default(now())
+
+  business  Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  wallet    CustomerWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  createdBy User           @relation("WalletTransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([walletId])
+  @@index([businessId, createdAt])
+  @@index([type])
 }
 
 model Supplier {

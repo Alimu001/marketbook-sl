@@ -12,6 +12,7 @@ export interface CreateSaleRefundPayload {
   items: SaleRefundItemInput[];
   reason: string;
   notes?: string;
+  refundDestination?: import("@/api/wallet").RefundDestination;
   refundPaymentMethod?: PaymentMethod;
 }
 
@@ -35,6 +36,8 @@ export interface SaleRefundDetail {
   refundAmount: string;
   receivableReduction: string;
   cashReturnAmount: string;
+  walletCreditAmount: string;
+  refundDestination: import("@/api/wallet").RefundDestination | null;
   refundPaymentMethod: PaymentMethod | null;
   reason: string;
   notes: string | null;

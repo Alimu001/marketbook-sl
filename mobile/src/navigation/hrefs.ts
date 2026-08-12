@@ -28,6 +28,7 @@ export const reportProductsHref = "/(app)/reports/products" as Href;
 export const reportPurchasesHref = "/(app)/reports/purchases" as Href;
 export const reportExpensesHref = "/(app)/reports/expenses" as Href;
 export const reportReceivablesHref = "/(app)/reports/receivables" as Href;
+export const reportWalletsHref = "/(app)/reports/wallets" as Href;
 export const reportPayablesHref = "/(app)/reports/payables" as Href;
 export const reportInventoryHref = "/(app)/reports/inventory" as Href;
 export const expenseCreateHref = "/(app)/expenses/create" as Href;
@@ -91,6 +92,10 @@ export function inventoryThresholdHref(productId: string): Href {
 
 export function customerDetailHref(customerId: string): Href {
   return `/(app)/customers/${customerId}` as Href;
+}
+
+export function customerWalletHref(customerId: string): Href {
+  return `/(app)/customers/wallet/${customerId}` as Href;
 }
 
 export function debtDetailHref(debtId: string): Href {

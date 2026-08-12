@@ -22,6 +22,7 @@ import {
   deriveDebtStatus,
   deriveSalePaymentStatus,
 } from "../debts/debt.service.js";
+import { debitWallet, lockCustomerWallet } from "../wallet/wallet.service.js";
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -111,6 +112,7 @@ function toSaleDetailResponse(
     discountAmount: Prisma.Decimal;
     totalAmount: Prisma.Decimal;
     amountPaid: Prisma.Decimal;
+    walletAmountUsed: Prisma.Decimal;
     outstandingAmount: Prisma.Decimal;
     refundedAmount: Prisma.Decimal;
     paymentStatus: "PAID" | "PARTIALLY_PAID" | "UNPAID";
@@ -159,6 +161,7 @@ function toSaleDetailResponse(
     discountAmount: formatMoney(sale.discountAmount),
     totalAmount: formatMoney(sale.totalAmount),
     amountPaid: formatMoney(sale.amountPaid),
+    walletAmountUsed: formatMoney(sale.walletAmountUsed),
     outstandingAmount: formatMoney(sale.outstandingAmount),
     refundedAmount: formatMoney(sale.refundedAmount),
     remainingRefundableAmount: formatMoney(remainingRefundableAmount),
@@ -291,10 +294,24 @@ export async function createSale(
 
     const totalAmount = subtractMoney(subtotal, discountAmount);
 
+    const walletAmount = toMoneyDecimalFromString(input.walletAmount ?? "0");
+
+    if (walletAmount.isNegative()) {
+      throw new AppError(400, "Invalid wallet amount", "INVALID_WALLET_AMOUNT");
+    }
+
+    if (walletAmount.gt(totalAmount)) {
+      throw new AppError(
+        400,
+        "Wallet amount cannot exceed sale total",
+        "INVALID_WALLET_AMOUNT",
+      );
+    }
+
     const amountPaid =
       input.amountPaid !== undefined
         ? toMoneyDecimalFromString(input.amountPaid)
-        : totalAmount;
+        : subtractMoney(totalAmount, walletAmount);
 
     if (amountPaid.isNegative()) {
       throw new AppError(400, "Invalid amount paid", "INVALID_AMOUNT_PAID");
@@ -308,7 +325,26 @@ export async function createSale(
       );
     }
 
-    const outstandingAmount = subtractMoney(totalAmount, amountPaid);
+    if (walletAmount.add(amountPaid).gt(totalAmount)) {
+      throw new AppError(
+        400,
+        "Wallet and amount paid cannot exceed total",
+        "INVALID_WALLET_AMOUNT",
+      );
+    }
+
+    const outstandingAmount = subtractMoney(
+      subtractMoney(totalAmount, walletAmount),
+      amountPaid,
+    );
+
+    if (walletAmount.gt(0) && !input.customerId) {
+      throw new AppError(
+        400,
+        "Customer is required when using store credit",
+        "WALLET_CUSTOMER_REQUIRED",
+      );
+    }
 
     if (outstandingAmount.gt(0) && !input.customerId) {
       throw new AppError(
@@ -329,7 +365,7 @@ export async function createSale(
     let customerSnapshot: { id: string; name: string } | null = null;
 
     if (input.customerId) {
-      const requireActive = outstandingAmount.gt(0);
+      const requireActive = outstandingAmount.gt(0) || walletAmount.gt(0);
       const customer = await assertCustomerInBusiness(
         businessId,
         input.customerId,
@@ -338,8 +374,30 @@ export async function createSale(
       customerSnapshot = { id: customer.id, name: customer.name };
     }
 
+    if (walletAmount.gt(0) && customerSnapshot) {
+      const wallet = await lockCustomerWallet(
+        tx,
+        businessId,
+        customerSnapshot.id,
+      );
+
+      if (walletAmount.gt(wallet.balance)) {
+        throw new AppError(
+          409,
+          "Insufficient wallet balance",
+          "INSUFFICIENT_WALLET_BALANCE",
+          {
+            details: {
+              balance: formatMoney(wallet.balance),
+              requested: formatMoney(walletAmount),
+            },
+          },
+        );
+      }
+    }
+
     const paymentStatus = deriveSalePaymentStatus(
-      amountPaid,
+      walletAmount.add(amountPaid),
       outstandingAmount,
     );
     const receiptNumber = await generateReceiptNumber(tx, businessId);
@@ -355,6 +413,7 @@ export async function createSale(
         discountAmount,
         totalAmount,
         amountPaid,
+        walletAmountUsed: walletAmount,
         outstandingAmount,
         paymentMethod: amountPaid.gt(0) ? input.paymentMethod! : null,
         paymentStatus,
@@ -404,6 +463,20 @@ export async function createSale(
           outstandingAmount,
           status: deriveDebtStatus(outstandingAmount, new Prisma.Decimal(0)),
         },
+      });
+    }
+
+    if (walletAmount.gt(0) && customerSnapshot) {
+      await debitWallet({
+        tx,
+        businessId,
+        customerId: customerSnapshot.id,
+        amount: walletAmount,
+        type: "SALE_PAYMENT",
+        createdByUserId,
+        referenceType: "SALE",
+        referenceId: createdSale.id,
+        notes: input.notes ?? undefined,
       });
     }
 
@@ -495,6 +568,7 @@ export async function listSales(businessId: string, query: ListSalesQuery) {
         receiptNumber: sale.receiptNumber,
         totalAmount: formatMoney(sale.totalAmount),
         amountPaid: formatMoney(sale.amountPaid),
+        walletAmountUsed: formatMoney(sale.walletAmountUsed),
         outstandingAmount: formatMoney(sale.outstandingAmount),
         refundedAmount: formatMoney(sale.refundedAmount),
         paymentStatus: sale.paymentStatus,

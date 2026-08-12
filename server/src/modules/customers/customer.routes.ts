@@ -8,6 +8,7 @@ import {
 import { requireBusinessRole } from "../../middleware/businessAuth.js";
 import { validate, validateQuery } from "../../middleware/validate.js";
 import * as customerController from "./customer.controller.js";
+import { customerWalletRouter } from "../wallet/wallet.routes.js";
 
 export const customersRouter = Router({ mergeParams: true });
 
@@ -54,3 +55,5 @@ customersRouter.get(
   "/:customerId/history",
   customerController.getCustomerHistory,
 );
+
+customersRouter.use("/:customerId/wallet", customerWalletRouter);

@@ -125,6 +125,14 @@ export async function resetBizTestData(): Promise<void> {
       where: { businessId: { in: testBusinessIds } },
     });
 
+    await prisma.customerWalletTransaction.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.customerWallet.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
     await prisma.saleRefundItem.deleteMany({
       where: {
         refund: {
@@ -213,6 +221,16 @@ export async function resetBizTestData(): Promise<void> {
           in: testBusinessIds,
         },
       },
+    });
+  }
+
+  if (testUserIds.length > 0) {
+    await prisma.customerWalletTransaction.deleteMany({
+      where: { createdByUserId: { in: testUserIds } },
+    });
+
+    await prisma.inventoryTransaction.deleteMany({
+      where: { performedByUserId: { in: testUserIds } },
     });
   }
 
@@ -393,6 +411,14 @@ export function purchaseReversalPath(
 
 export function supplierReturnsPath(businessId: string, suffix = "") {
   return `/api/v1/businesses/${businessId}/supplier-returns${suffix}`;
+}
+
+export function walletPath(businessId: string, customerId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/customers/${customerId}/wallet${suffix}`;
+}
+
+export function businessWalletsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/wallets${suffix}`;
 }
 
 export function productInventoryPath(

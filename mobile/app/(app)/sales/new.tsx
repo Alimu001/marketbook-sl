@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { createSale } from "@/api/sales";
+import { getCustomerWallet } from "@/api/wallet";
 import { listInventory } from "@/api/inventory";
 import { listProducts } from "@/api/products";
 import {
@@ -80,6 +81,8 @@ export default function NewSaleScreen() {
   const [discountAmount, setDiscountAmount] = useState("0");
   const [amountPaid, setAmountPaid] = useState("");
   const [amountPaidTouched, setAmountPaidTouched] = useState(false);
+  const [walletAmount, setWalletAmount] = useState("");
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [checkoutError, setCheckoutError] = useState<string | undefined>();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -158,8 +161,24 @@ export default function NewSaleScreen() {
     return subtractMoney(subtotal, discountAmount);
   }, [subtotal, discountAmount]);
 
+  const effectiveWalletAmount = useMemo(() => {
+    if (!selectedCustomer || walletAmount.trim() === "") {
+      return "0";
+    }
+
+    if (!isValidMoneyInput(walletAmount)) {
+      return null;
+    }
+
+    return walletAmount;
+  }, [selectedCustomer, walletAmount]);
+
   const effectiveAmountPaid = useMemo(() => {
     if (amountPaid.trim() === "" && total) {
+      if (effectiveWalletAmount && compareMoney(effectiveWalletAmount, "0") === 1) {
+        return subtractMoney(total, effectiveWalletAmount);
+      }
+
       return total;
     }
 
@@ -168,15 +187,21 @@ export default function NewSaleScreen() {
     }
 
     return amountPaid;
-  }, [amountPaid, total]);
+  }, [amountPaid, total, effectiveWalletAmount]);
 
   const balanceDue = useMemo(() => {
     if (!total || !effectiveAmountPaid) {
       return null;
     }
 
-    return subtractMoney(total, effectiveAmountPaid);
-  }, [total, effectiveAmountPaid]);
+    let remaining = total;
+
+    if (effectiveWalletAmount && compareMoney(effectiveWalletAmount, "0") === 1) {
+      remaining = subtractMoney(remaining, effectiveWalletAmount) ?? remaining;
+    }
+
+    return subtractMoney(remaining, effectiveAmountPaid);
+  }, [total, effectiveAmountPaid, effectiveWalletAmount]);
 
   const isCreditSale = balanceDue !== null && compareMoney(balanceDue, "0") === 1;
   const requiresPaymentMethod =
@@ -184,9 +209,32 @@ export default function NewSaleScreen() {
 
   useEffect(() => {
     if (total && !amountPaidTouched) {
+      if (effectiveWalletAmount && compareMoney(effectiveWalletAmount, "0") === 1) {
+        setAmountPaid(subtractMoney(total, effectiveWalletAmount) ?? total);
+        return;
+      }
+
       setAmountPaid(total);
     }
-  }, [total, amountPaidTouched]);
+  }, [total, amountPaidTouched, effectiveWalletAmount]);
+
+  useEffect(() => {
+    if (!selectedCustomer || !accessToken || !businessId) {
+      setWalletBalance(null);
+      setWalletAmount("");
+      return;
+    }
+
+    void getCustomerWallet(accessToken, businessId, selectedCustomer.id)
+      .then((wallet) => setWalletBalance(wallet.balance))
+      .catch(() => setWalletBalance("0.00"));
+  }, [selectedCustomer, accessToken, businessId]);
+
+  useEffect(() => {
+    if (!selectedCustomer) {
+      setWalletAmount("");
+    }
+  }, [selectedCustomer]);
 
   const handleAddProduct = (product: PosProduct) => {
     addItem({
@@ -259,6 +307,24 @@ export default function NewSaleScreen() {
       return;
     }
 
+    if (
+      effectiveWalletAmount &&
+      walletBalance &&
+      compareMoney(effectiveWalletAmount, walletBalance) === 1
+    ) {
+      setCheckoutError("Store credit exceeds customer wallet balance.");
+      return;
+    }
+
+    if (
+      effectiveWalletAmount &&
+      total &&
+      compareMoney(effectiveWalletAmount, total) === 1
+    ) {
+      setCheckoutError("Store credit cannot exceed sale total.");
+      return;
+    }
+
     if (isCreditSale && !selectedCustomer) {
       setCheckoutError("Select a customer for credit sales with a balance due.");
       return;
@@ -290,6 +356,9 @@ export default function NewSaleScreen() {
         })),
         discountAmount,
         customerId: selectedCustomer?.id,
+        ...(effectiveWalletAmount && compareMoney(effectiveWalletAmount, "0") === 1
+          ? { walletAmount: effectiveWalletAmount }
+          : {}),
         amountPaid: effectiveAmountPaid,
         ...(requiresPaymentMethod ? { paymentMethod } : {}),
       });
@@ -480,7 +549,10 @@ export default function NewSaleScreen() {
           {selectedCustomer ? (
             <Pressable
               accessibilityRole="button"
-              onPress={clearSelectedCustomer}
+              onPress={() => {
+                clearSelectedCustomer();
+                setWalletAmount("");
+              }}
               style={styles.clearCustomerLink}
             >
               <Text style={styles.clearCustomerText}>Clear</Text>
@@ -488,8 +560,61 @@ export default function NewSaleScreen() {
           ) : null}
         </View>
 
+        {selectedCustomer && walletBalance ? (
+          <View style={styles.walletSection}>
+            <Text style={styles.sectionTitle}>Store Credit</Text>
+            <Text style={styles.walletBalanceLabel}>
+              Wallet Balance: {formatMoneyDisplay(walletBalance)}
+            </Text>
+            <View style={styles.discountSection}>
+              <Text style={styles.summaryLabel}>Use Store Credit</Text>
+              <TextInput
+                value={walletAmount}
+                onChangeText={setWalletAmount}
+                keyboardType="decimal-pad"
+                style={styles.discountInput}
+                placeholder="0.00"
+              />
+            </View>
+            {compareMoney(walletBalance, "0") === 1 ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  const maxUse =
+                    total && compareMoney(walletBalance, total) === 1
+                      ? total
+                      : walletBalance;
+                  setWalletAmount(maxUse);
+                  setAmountPaidTouched(false);
+                }}
+                style={styles.useMaxButton}
+              >
+                <Text style={styles.useMaxButtonText}>Use Max</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalValue}>
+            {formatMoneyDisplay(total ?? "0.00")}
+          </Text>
+        </View>
+
+        {selectedCustomer &&
+        effectiveWalletAmount &&
+        compareMoney(effectiveWalletAmount, "0") === 1 ? (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Store Credit</Text>
+            <Text style={styles.summaryValue}>
+              {formatMoneyDisplay(effectiveWalletAmount)}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.discountSection}>
-          <Text style={styles.summaryLabel}>Amount Paid Now</Text>
+          <Text style={styles.summaryLabel}>Paid Now</Text>
           <TextInput
             value={amountPaid}
             onChangeText={(value) => {
@@ -774,6 +899,25 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontSize: 14,
     fontWeight: "600",
+  },
+  walletSection: {
+    gap: 8,
+  },
+  walletBalanceLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0F766E",
+  },
+  useMaxButton: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#CCFBF1",
+  },
+  useMaxButtonText: {
+    color: "#0F766E",
+    fontWeight: "700",
   },
   balanceDueValue: {
     color: "#DC2626",

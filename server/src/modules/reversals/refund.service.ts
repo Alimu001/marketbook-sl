@@ -24,6 +24,7 @@ import {
   lockCustomerDebt,
 } from "../debts/debt.service.js";
 import { lockInventoryBalance } from "../inventory/inventory.service.js";
+import { creditWallet } from "../wallet/wallet.service.js";
 import { calculateLineRefundAmount } from "./refundCalculation.js";
 import {
   generateRefundNumber,
@@ -50,6 +51,8 @@ function toRefundResponse(
     refundAmount: Prisma.Decimal;
     receivableReduction: Prisma.Decimal;
     cashReturnAmount: Prisma.Decimal;
+    walletCreditAmount: Prisma.Decimal;
+    refundDestination: "CASH" | "MOBILE_MONEY" | "BANK_TRANSFER" | "WALLET" | null;
     refundPaymentMethod: PaymentMethod | null;
     reason: string;
     notes: string | null;
@@ -80,6 +83,8 @@ function toRefundResponse(
     refundAmount: formatMoney(refund.refundAmount),
     receivableReduction: formatMoney(refund.receivableReduction),
     cashReturnAmount: formatMoney(refund.cashReturnAmount),
+    walletCreditAmount: formatMoney(refund.walletCreditAmount),
+    refundDestination: refund.refundDestination,
     refundPaymentMethod: refund.refundPaymentMethod,
     reason: refund.reason,
     notes: refund.notes,
@@ -198,14 +203,40 @@ export async function createSaleRefund(
       refundAmount,
       sale.outstandingAmount,
     );
-    const cashReturnAmount = refundAmount.sub(receivableReduction);
+    const excessReturn = refundAmount.sub(receivableReduction);
 
-    if (cashReturnAmount.gt(0) && !input.refundPaymentMethod) {
-      throw new AppError(
-        400,
-        "Refund payment method is required when returning collected money",
-        "SALE_HAS_PAYMENTS_REQUIRING_REFUND",
-      );
+    let refundDestination = input.refundDestination ?? null;
+    if (!refundDestination && input.refundPaymentMethod) {
+      refundDestination = input.refundPaymentMethod;
+    }
+
+    let walletCreditAmount = new Prisma.Decimal(0);
+    let cashReturnAmount = new Prisma.Decimal(0);
+    let refundPaymentMethod: PaymentMethod | null = null;
+
+    if (excessReturn.gt(0)) {
+      if (refundDestination === "WALLET") {
+        if (!sale.customerId) {
+          throw new AppError(
+            400,
+            "Customer is required for refund to wallet",
+            "WALLET_REFUND_REQUIRES_CUSTOMER",
+          );
+        }
+
+        walletCreditAmount = excessReturn;
+      } else {
+        if (!refundDestination) {
+          throw new AppError(
+            400,
+            "Refund destination is required when returning collected money",
+            "SALE_HAS_PAYMENTS_REQUIRING_REFUND",
+          );
+        }
+
+        cashReturnAmount = excessReturn;
+        refundPaymentMethod = refundDestination as PaymentMethod;
+      }
     }
 
     const refundNumber = await generateRefundNumber(tx, businessId);
@@ -218,8 +249,9 @@ export async function createSaleRefund(
         refundAmount,
         receivableReduction,
         cashReturnAmount,
-        refundPaymentMethod:
-          cashReturnAmount.gt(0) ? input.refundPaymentMethod! : null,
+        walletCreditAmount,
+        refundDestination,
+        refundPaymentMethod,
         reason: input.reason,
         notes: input.notes ?? null,
         createdByUserId,
@@ -289,6 +321,21 @@ export async function createSaleRefund(
           outstandingAmount: debtOutstanding,
           status: deriveDebtStatus(debtOutstanding, debt.amountPaid),
         },
+      });
+    }
+
+    if (walletCreditAmount.gt(0) && sale.customerId) {
+      await creditWallet({
+        tx,
+        businessId,
+        customerId: sale.customerId,
+        amount: walletCreditAmount,
+        type: "REFUND_CREDIT",
+        createdByUserId,
+        referenceType: "SALE_REFUND",
+        referenceId: createdRefund.id,
+        reason: input.reason,
+        notes: input.notes ?? undefined,
       });
     }
 

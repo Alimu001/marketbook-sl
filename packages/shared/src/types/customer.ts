@@ -9,6 +9,7 @@ export interface CustomerSummary {
   email: string | null;
   isActive: boolean;
   outstandingBalance: string;
+  walletBalance: string;
   createdAt: string;
 }
 
@@ -22,6 +23,7 @@ export interface CustomerDetail {
   notes: string | null;
   isActive: boolean;
   outstandingBalance: string;
+  walletBalance: string;
   openDebtCount: number;
   createdAt: string;
   updatedAt: string;

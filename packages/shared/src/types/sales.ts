@@ -20,6 +20,7 @@ export interface SaleListItem {
   receiptNumber: string;
   totalAmount: string;
   amountPaid: string;
+  walletAmountUsed: string;
   outstandingAmount: string;
   refundedAmount: string;
   paymentStatus: SalePaymentStatus;
@@ -52,6 +53,7 @@ export interface SaleDetailResponse {
   discountAmount: string;
   totalAmount: string;
   amountPaid: string;
+  walletAmountUsed: string;
   outstandingAmount: string;
   refundedAmount: string;
   remainingRefundableAmount: string;

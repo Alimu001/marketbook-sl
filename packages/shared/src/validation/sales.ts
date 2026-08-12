@@ -46,6 +46,7 @@ export const createSaleSchema = z
       .max(MAX_SALE_ITEMS, `A sale cannot exceed ${MAX_SALE_ITEMS} items`),
     discountAmount: moneyStringSchema.optional().default("0"),
     customerId: z.string().uuid("Customer ID must be a valid UUID").optional(),
+    walletAmount: moneyStringSchema.optional().default("0"),
     amountPaid: moneyStringSchema.optional(),
     paymentMethod: z.enum(paymentMethods, {
       message: `Payment method must be one of: ${paymentMethods.join(", ")}`,

@@ -15,6 +15,8 @@ import {
   getSaleReversalSummary,
   type SaleReversalSummary,
 } from "@/api/reversals";
+import { getSale } from "@/api/sales";
+import { REFUND_DESTINATIONS, type RefundDestination } from "@/api/wallet";
 import { ApiError, getUserFacingErrorMessage } from "@/api/errors";
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -28,7 +30,6 @@ import { formatQuantityDisplay } from "@/inventory/quantity";
 import { saleDetailHref } from "@/navigation/hrefs";
 import { formatMoneyDisplay } from "@/products/money";
 import { canCreateSaleRefund } from "@/reversals/permissions";
-import { PAYMENT_METHODS, type PaymentMethod } from "@/sales";
 
 export default function SaleRefundScreen() {
   const router = useRouter();
@@ -37,12 +38,13 @@ export default function SaleRefundScreen() {
   const { currentBusiness } = useBusiness();
 
   const [summary, setSummary] = useState<SaleReversalSummary | null>(null);
+  const [hasCustomer, setHasCustomer] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [restockMap, setRestockMap] = useState<Record<string, boolean>>({});
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
-  const [refundPaymentMethod, setRefundPaymentMethod] =
-    useState<PaymentMethod>("CASH");
+  const [refundDestination, setRefundDestination] =
+    useState<RefundDestination>("CASH");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
@@ -60,8 +62,12 @@ export default function SaleRefundScreen() {
     setErrorMessage(undefined);
 
     try {
-      const data = await getSaleReversalSummary(accessToken, businessId, saleId);
+      const [data, sale] = await Promise.all([
+        getSaleReversalSummary(accessToken, businessId, saleId),
+        getSale(accessToken, businessId, saleId),
+      ]);
       setSummary(data);
+      setHasCustomer(Boolean(sale.customer));
       const initialQuantities: Record<string, string> = {};
       const initialRestock: Record<string, boolean> = {};
       for (const item of data.items) {
@@ -136,7 +142,7 @@ export default function SaleRefundScreen() {
         items,
         reason: reason.trim(),
         notes: notes.trim() || undefined,
-        refundPaymentMethod,
+        refundDestination,
       });
       router.replace(`${saleDetailHref(saleId)}?refunded=1` as never);
     } catch (error) {
@@ -250,21 +256,23 @@ export default function SaleRefundScreen() {
           placeholder="Additional details"
         />
 
-        <Text style={styles.sectionLabel}>Refund method (if cash returned)</Text>
+        <Text style={styles.sectionLabel}>Return via</Text>
         <View style={styles.methodRow}>
-          {PAYMENT_METHODS.map((method) => (
+          {REFUND_DESTINATIONS.filter(
+            (method) => method.value !== "WALLET" || hasCustomer,
+          ).map((method) => (
             <Pressable
               key={method.value}
               style={[
                 styles.methodChip,
-                refundPaymentMethod === method.value && styles.methodChipActive,
+                refundDestination === method.value && styles.methodChipActive,
               ]}
-              onPress={() => setRefundPaymentMethod(method.value)}
+              onPress={() => setRefundDestination(method.value)}
             >
               <Text
                 style={[
                   styles.methodChipText,
-                  refundPaymentMethod === method.value &&
+                  refundDestination === method.value &&
                     styles.methodChipTextActive,
                 ]}
               >
@@ -273,6 +281,12 @@ export default function SaleRefundScreen() {
             </Pressable>
           ))}
         </View>
+
+        {refundDestination === "WALLET" ? (
+          <Text style={styles.previewHint}>
+            Excess refund beyond outstanding receivable will be added as store credit.
+          </Text>
+        ) : null}
 
         {errorMessage ? <FormMessage type="error" message={errorMessage} /> : null}
 

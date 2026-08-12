@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { paymentMethods } from "./sales.js";
+import { refundDestinations } from "./wallet.js";
 
 const quantitySchema = z
   .string()
@@ -23,6 +24,7 @@ export const createSaleRefundSchema = z
       .max(50),
     reason: z.string().trim().min(1).max(500),
     notes: z.string().trim().max(2000).optional(),
+    refundDestination: z.enum(refundDestinations).optional(),
     refundPaymentMethod: z.enum(paymentMethods).optional(),
   })
   .strict()
@@ -37,6 +39,20 @@ export const createSaleRefundSchema = z
         });
       }
       seen.add(item.saleItemId);
+    }
+
+    if (value.refundDestination && value.refundPaymentMethod) {
+      const destinationFromMethod = value.refundPaymentMethod;
+      if (
+        value.refundDestination !== "WALLET" &&
+        value.refundDestination !== destinationFromMethod
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "refundDestination must match refundPaymentMethod when both are provided",
+          path: ["refundDestination"],
+        });
+      }
     }
   });
 

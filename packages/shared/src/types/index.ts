@@ -111,3 +111,14 @@ export type {
   SaleReversalSummary,
   SaleVoidResponse,
 } from "./reversal.js";
+
+export type {
+  BusinessWalletListItem,
+  BusinessWalletsResponse,
+  CustomerWalletResponse,
+  CustomerWalletTransactionResponse,
+  CustomerWalletTransactionType,
+  RefundDestination,
+  WalletHistoryResponse,
+  WalletsReportResponse,
+} from "./wallet.js";

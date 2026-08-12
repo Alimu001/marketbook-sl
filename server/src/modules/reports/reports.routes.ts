@@ -63,6 +63,8 @@ reportsRouter.get(
 
 reportsRouter.get("/receivables", reportsController.getReceivablesReport);
 
+reportsRouter.get("/wallets", reportsController.getWalletsReport);
+
 reportsRouter.get("/payables", reportsController.getPayablesReport);
 
 reportsRouter.get("/inventory", reportsController.getInventoryReport);

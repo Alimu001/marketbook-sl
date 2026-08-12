@@ -10,6 +10,7 @@ import type {
 } from "@marketbook/shared/validation";
 import { AppError } from "../../middleware/errorHandler.js";
 import * as reportsService from "./reports.service.js";
+import * as walletService from "../wallet/wallet.service.js";
 
 function getBusinessId(req: Request): string {
   const businessId = req.business?.id;
@@ -108,6 +109,19 @@ export async function getReceivablesReport(
 ): Promise<void> {
   try {
     const report = await reportsService.getReceivablesReport(getBusinessId(req));
+    res.status(200).json({ data: report });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getWalletsReport(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const report = await walletService.getWalletsReport(getBusinessId(req));
     res.status(200).json({ data: report });
   } catch (error) {
     next(error);

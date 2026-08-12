@@ -13,6 +13,7 @@ import { Prisma as PrismaNamespace } from "../../../generated/prisma/client.js";
 import { formatMoney } from "../../lib/money.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
+import { getWalletBalanceMap } from "../wallet/wallet.service.js";
 
 async function getOutstandingBalanceMap(
   businessId: string,
@@ -66,6 +67,7 @@ async function getOpenDebtCount(
 function toCustomerSummary(
   customer: Customer,
   outstandingBalance: Prisma.Decimal,
+  walletBalance: Prisma.Decimal,
 ): CustomerSummary {
   return {
     id: customer.id,
@@ -74,6 +76,7 @@ function toCustomerSummary(
     email: customer.email,
     isActive: customer.isActive,
     outstandingBalance: formatMoney(outstandingBalance),
+    walletBalance: formatMoney(walletBalance),
     createdAt: customer.createdAt.toISOString(),
   };
 }
@@ -81,6 +84,7 @@ function toCustomerSummary(
 function toCustomerDetail(
   customer: Customer,
   outstandingBalance: Prisma.Decimal,
+  walletBalance: Prisma.Decimal,
   openDebtCount: number,
 ): CustomerDetail {
   return {
@@ -93,6 +97,7 @@ function toCustomerDetail(
     notes: customer.notes,
     isActive: customer.isActive,
     outstandingBalance: formatMoney(outstandingBalance),
+    walletBalance: formatMoney(walletBalance),
     openDebtCount,
     createdAt: customer.createdAt.toISOString(),
     updatedAt: customer.updatedAt.toISOString(),
@@ -141,7 +146,12 @@ export async function createCustomer(
     },
   });
 
-  return toCustomerDetail(customer, new PrismaNamespace.Decimal(0), 0);
+  return toCustomerDetail(
+    customer,
+    new PrismaNamespace.Decimal(0),
+    new PrismaNamespace.Decimal(0),
+    0,
+  );
 }
 
 export async function listCustomers(
@@ -174,6 +184,10 @@ export async function listCustomers(
       businessId,
       customers.map((customer) => customer.id),
     );
+    const walletMap = await getWalletBalanceMap(
+      businessId,
+      customers.map((customer) => customer.id),
+    );
 
     const filtered = customers.filter((customer) => {
       const balance = balanceMap.get(customer.id) ?? new PrismaNamespace.Decimal(0);
@@ -187,6 +201,7 @@ export async function listCustomers(
         toCustomerSummary(
           customer,
           balanceMap.get(customer.id) ?? new PrismaNamespace.Decimal(0),
+          walletMap.get(customer.id) ?? new PrismaNamespace.Decimal(0),
         ),
       ),
       page: query.page,
@@ -209,12 +224,17 @@ export async function listCustomers(
     businessId,
     customers.map((customer) => customer.id),
   );
+  const walletMap = await getWalletBalanceMap(
+    businessId,
+    customers.map((customer) => customer.id),
+  );
 
   return {
     items: customers.map((customer) =>
       toCustomerSummary(
         customer,
         balanceMap.get(customer.id) ?? new PrismaNamespace.Decimal(0),
+        walletMap.get(customer.id) ?? new PrismaNamespace.Decimal(0),
       ),
     ),
     page: query.page,
@@ -223,15 +243,28 @@ export async function listCustomers(
   };
 }
 
+async function buildCustomerDetail(
+  customer: Customer,
+  businessId: string,
+): Promise<CustomerDetail> {
+  const outstandingBalance = await getOutstandingBalance(businessId, customer.id);
+  const walletMap = await getWalletBalanceMap(businessId, [customer.id]);
+  const openDebtCount = await getOpenDebtCount(businessId, customer.id);
+
+  return toCustomerDetail(
+    customer,
+    outstandingBalance,
+    walletMap.get(customer.id) ?? new PrismaNamespace.Decimal(0),
+    openDebtCount,
+  );
+}
+
 export async function getCustomerDetail(
   businessId: string,
   customerId: string,
 ): Promise<CustomerDetail> {
   const customer = await assertCustomerInBusiness(businessId, customerId);
-  const outstandingBalance = await getOutstandingBalance(businessId, customerId);
-  const openDebtCount = await getOpenDebtCount(businessId, customerId);
-
-  return toCustomerDetail(customer, outstandingBalance, openDebtCount);
+  return buildCustomerDetail(customer, businessId);
 }
 
 export async function updateCustomer(
@@ -252,10 +285,7 @@ export async function updateCustomer(
     },
   });
 
-  const outstandingBalance = await getOutstandingBalance(businessId, customerId);
-  const openDebtCount = await getOpenDebtCount(businessId, customerId);
-
-  return toCustomerDetail(customer, outstandingBalance, openDebtCount);
+  return buildCustomerDetail(customer, businessId);
 }
 
 export async function archiveCustomer(
@@ -269,10 +299,7 @@ export async function archiveCustomer(
     data: { isActive: false },
   });
 
-  const outstandingBalance = await getOutstandingBalance(businessId, customerId);
-  const openDebtCount = await getOpenDebtCount(businessId, customerId);
-
-  return toCustomerDetail(customer, outstandingBalance, openDebtCount);
+  return buildCustomerDetail(customer, businessId);
 }
 
 export async function restoreCustomer(
@@ -286,10 +313,7 @@ export async function restoreCustomer(
     data: { isActive: true },
   });
 
-  const outstandingBalance = await getOutstandingBalance(businessId, customerId);
-  const openDebtCount = await getOpenDebtCount(businessId, customerId);
-
-  return toCustomerDetail(customer, outstandingBalance, openDebtCount);
+  return buildCustomerDetail(customer, businessId);
 }
 
 export async function getCustomerHistory(

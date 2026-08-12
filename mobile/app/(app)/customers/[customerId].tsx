@@ -35,8 +35,9 @@ import {
   type CustomerDetail,
   type CustomerHistory,
 } from "@/customers";
-import { customersHref, debtDetailHref, saleDetailHref } from "@/navigation/hrefs";
+import { customersHref, customerWalletHref, debtDetailHref, saleDetailHref } from "@/navigation/hrefs";
 import { formatDateDisplay, formatMoneyDisplay } from "@/products/money";
+import { canManualAdjustWallet } from "@/customers/walletPermissions";
 import { z } from "zod";
 
 const updateCustomerFormSchema = z
@@ -75,6 +76,7 @@ export default function CustomerDetailScreen() {
   const canEdit = role ? canEditCustomer(role) : false;
   const canArchive = role ? canArchiveCustomer(role) : false;
   const canRestore = role ? canRestoreCustomer(role) : false;
+  const canAdjustWallet = role ? canManualAdjustWallet(role) : false;
 
   const populateForm = useCallback((entry: CustomerDetail) => {
     setName(entry.name);
@@ -348,6 +350,10 @@ export default function CustomerDetailScreen() {
               value={formatMoneyDisplay(customer.outstandingBalance)}
             />
             <DetailRow
+              label="Store Credit"
+              value={formatMoneyDisplay(customer.walletBalance)}
+            />
+            <DetailRow
               label="Open Debts"
               value={String(customer.openDebtCount)}
             />
@@ -380,6 +386,12 @@ export default function CustomerDetailScreen() {
                 disabled={isArchiving}
               />
             ) : null}
+
+            <FormButton
+              label="View Wallet History"
+              variant="secondary"
+              onPress={() => router.push(customerWalletHref(customerId))}
+            />
           </View>
         )}
 

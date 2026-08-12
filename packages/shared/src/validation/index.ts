@@ -147,3 +147,16 @@ export {
   type CreateSupplierReturnInput,
   type ListSupplierReturnsQuery,
 } from "./supplierReturn.js";
+
+export {
+  manualWalletCreditSchema,
+  manualWalletDebitSchema,
+  walletHistoryQuerySchema,
+  listBusinessWalletsQuerySchema,
+  walletTransactionTypes,
+  refundDestinations,
+  type ManualWalletCreditInput,
+  type ManualWalletDebitInput,
+  type WalletHistoryQuery,
+  type ListBusinessWalletsQuery,
+} from "./wallet.js";

@@ -30,6 +30,7 @@ import {
   formatPaymentMethod,
   formatSaleDateTime,
   formatSalePaymentStatus,
+  compareMoney,
   type SaleDetail,
 } from "@/sales";
 
@@ -173,8 +174,13 @@ export default function SaleDetailScreen() {
         {sale.customer ? (
           <Text style={styles.metaLine}>Customer: {sale.customer.name}</Text>
         ) : null}
+        {compareMoney(sale.walletAmountUsed, "0") === 1 ? (
+          <Text style={styles.metaLine}>
+            Store Credit Used: {formatMoneyDisplay(sale.walletAmountUsed)}
+          </Text>
+        ) : null}
         <Text style={styles.metaLine}>
-          Paid: {formatMoneyDisplay(sale.amountPaid)}
+          Paid Now: {formatMoneyDisplay(sale.amountPaid)}
         </Text>
         <Text style={styles.metaLine}>
           Balance Due: {formatMoneyDisplay(sale.outstandingAmount)}

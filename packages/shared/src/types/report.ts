@@ -12,6 +12,7 @@ export interface DashboardSummary {
   estimatedNetOperatingProfit: string;
   purchaseSpend: string;
   customerReceivables: string;
+  customerWalletLiability: string;
   supplierPayables: string;
   salesCount: number;
   purchaseCount: number;

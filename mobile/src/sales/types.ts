@@ -18,6 +18,7 @@ export interface SaleListItem {
   receiptNumber: string;
   totalAmount: string;
   amountPaid: string;
+  walletAmountUsed: string;
   outstandingAmount: string;
   refundedAmount: string;
   paymentStatus: SalePaymentStatus;
@@ -50,6 +51,7 @@ export interface SaleDetail {
   discountAmount: string;
   totalAmount: string;
   amountPaid: string;
+  walletAmountUsed: string;
   outstandingAmount: string;
   refundedAmount: string;
   remainingRefundableAmount: string;
@@ -71,6 +73,7 @@ export interface CreateSalePayload {
   }>;
   discountAmount?: string;
   customerId?: string;
+  walletAmount?: string;
   amountPaid?: string;
   paymentMethod?: PaymentMethod;
   notes?: string;

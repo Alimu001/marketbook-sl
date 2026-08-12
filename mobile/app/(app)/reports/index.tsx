@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { appHref, reportExpensesHref, reportInventoryHref, reportPayablesHref, reportProductsHref, reportPurchasesHref, reportReceivablesHref, reportSalesHref } from "@/navigation/hrefs";
+import { appHref, reportExpensesHref, reportInventoryHref, reportPayablesHref, reportProductsHref, reportPurchasesHref, reportReceivablesHref, reportSalesHref, reportWalletsHref } from "@/navigation/hrefs";
 
 const REPORT_CARDS = [
   { label: "Sales Performance", href: reportSalesHref, description: "Revenue, COGS, and gross profit" },
@@ -9,6 +9,7 @@ const REPORT_CARDS = [
   { label: "Purchases", href: reportPurchasesHref, description: "Supplier purchase spend" },
   { label: "Expenses", href: reportExpensesHref, description: "Operating expenses by category" },
   { label: "Customer Receivables", href: reportReceivablesHref, description: "Outstanding customer debts" },
+  { label: "Customer Store Credit", href: reportWalletsHref, description: "Store credit liability to customers" },
   { label: "Supplier Payables", href: reportPayablesHref, description: "Outstanding supplier balances" },
   { label: "Inventory", href: reportInventoryHref, description: "Stock levels and low-stock alerts" },
 ] as const;

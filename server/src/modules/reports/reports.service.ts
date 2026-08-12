@@ -197,6 +197,18 @@ async function getCurrentReceivables(businessId: string): Promise<Prisma.Decimal
   return aggregate._sum.outstandingAmount ?? new Prisma.Decimal(0);
 }
 
+async function getCurrentWalletLiability(businessId: string): Promise<Prisma.Decimal> {
+  const aggregate = await prisma.customerWallet.aggregate({
+    where: {
+      businessId,
+      balance: { gt: 0 },
+    },
+    _sum: { balance: true },
+  });
+
+  return aggregate._sum.balance ?? new Prisma.Decimal(0);
+}
+
 async function getCurrentPayables(businessId: string): Promise<Prisma.Decimal> {
   const aggregate = await prisma.supplierPayable.aggregate({
     where: {
@@ -243,13 +255,14 @@ export async function getDashboardSummary(
   const bounds = reportDateRangeToDateTimeBounds(query.from, query.to);
   const expenseBounds = reportDateRangeToExpenseDateBounds(query.from, query.to);
 
-  const [sales, cogs, expenses, purchases, receivables, payables, inventory] =
+  const [sales, cogs, expenses, purchases, receivables, walletLiability, payables, inventory] =
     await Promise.all([
       aggregateSalesRevenue(businessId, bounds),
       aggregateCostOfGoodsSold(businessId, bounds),
       aggregateOperatingExpenses(businessId, expenseBounds),
       aggregatePurchaseSpend(businessId, bounds),
       getCurrentReceivables(businessId),
+      getCurrentWalletLiability(businessId),
       getCurrentPayables(businessId),
       getInventoryCounts(businessId),
     ]);
@@ -269,6 +282,7 @@ export async function getDashboardSummary(
     estimatedNetOperatingProfit: formatMoney(estimatedNetOperatingProfit),
     purchaseSpend: formatMoney(purchases.spend),
     customerReceivables: formatMoney(receivables),
+    customerWalletLiability: formatMoney(walletLiability),
     supplierPayables: formatMoney(payables),
     salesCount: sales.count,
     purchaseCount: purchases.count,
