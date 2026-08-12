@@ -4,7 +4,7 @@ import type {
   SaleListItem,
 } from "@marketbook/shared/types";
 import type { CreateSaleInput, ListSalesQuery } from "@marketbook/shared/validation";
-import type { PaymentMethod, Product } from "../../../generated/prisma/client.js";
+import type { PaymentMethod, PaymentProvider, PaymentSource, Product } from "../../../generated/prisma/client.js";
 import { Prisma } from "../../../generated/prisma/client.js";
 import {
   formatMoney,
@@ -23,6 +23,7 @@ import {
   deriveSalePaymentStatus,
 } from "../debts/debt.service.js";
 import { debitWallet, lockCustomerWallet } from "../wallet/wallet.service.js";
+import { getActiveReservedQuantity } from "../payments/reservation.service.js";
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -117,6 +118,9 @@ function toSaleDetailResponse(
     refundedAmount: Prisma.Decimal;
     paymentStatus: "PAID" | "PARTIALLY_PAID" | "UNPAID";
     paymentMethod: PaymentMethod | null;
+    paymentSource?: PaymentSource;
+    paymentProvider?: PaymentProvider | null;
+    providerReference?: string | null;
     status: "COMPLETED" | "VOIDED";
     notes: string | null;
     customerId: string | null;
@@ -167,6 +171,9 @@ function toSaleDetailResponse(
     remainingRefundableAmount: formatMoney(remainingRefundableAmount),
     paymentStatus: sale.paymentStatus,
     paymentMethod: sale.paymentMethod,
+    paymentSource: sale.paymentSource ?? "MANUAL",
+    paymentProvider: sale.paymentProvider ?? null,
+    providerReference: sale.providerReference ?? null,
     status: sale.status,
     notes: sale.notes,
     customer:
@@ -195,6 +202,332 @@ function toSaleDetailResponse(
   };
 }
 
+export interface FinalizeSaleOptions {
+  paymentSource?: PaymentSource;
+  paymentProvider?: PaymentProvider | null;
+  providerReference?: string | null;
+  skipStockCheckAgainstReservations?: boolean;
+}
+
+export async function finalizeSaleCheckoutInTransaction(
+  tx: TransactionClient,
+  businessId: string,
+  createdByUserId: string,
+  input: CreateSaleInput,
+  options: FinalizeSaleOptions = {},
+): Promise<
+  Awaited<
+    ReturnType<
+      typeof prisma.sale.create<{
+        include: {
+          createdBy: { select: { id: true; name: true; email: true } };
+          customer: { select: { id: true; name: true } };
+          items: true;
+        };
+      }>
+    >
+  >
+> {
+  if (input.items.length === 0) {
+    throw new AppError(400, "At least one item is required", "EMPTY_SALE");
+  }
+
+  const normalizedItems = normalizeSaleItems(input.items);
+  const discountAmount = toMoneyDecimalFromString(input.discountAmount ?? "0");
+  const products = await tx.product.findMany({
+    where: {
+      id: {
+        in: normalizedItems.map((item) => item.productId),
+      },
+    },
+  });
+
+  const productMap = new Map(products.map((product) => [product.id, product]));
+  const preparedLines: PreparedSaleLine[] = [];
+
+  for (const item of normalizedItems) {
+    const product = productMap.get(item.productId);
+
+    if (!product) {
+      throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
+    }
+
+    if (product.businessId !== businessId) {
+      throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
+    }
+
+    if (!product.isActive) {
+      throw new AppError(
+        409,
+        "Product is not available for sale",
+        "PRODUCT_INACTIVE",
+        {
+          details: {
+            productId: product.id,
+            productName: product.name,
+          },
+        },
+      );
+    }
+
+    const unitPrice = product.sellingPrice;
+    const lineSubtotal = multiplyMoney(unitPrice, item.quantity);
+
+    preparedLines.push({
+      product,
+      quantity: item.quantity,
+      unitPrice,
+      lineSubtotal,
+    });
+  }
+
+  const lockedBalances = new Map<string, Awaited<ReturnType<typeof lockInventoryBalance>>>();
+
+  for (const line of preparedLines) {
+    const balance = await lockInventoryBalance(tx, businessId, line.product.id);
+    lockedBalances.set(line.product.id, balance);
+
+    const reservedQuantity = await getActiveReservedQuantity(
+      tx,
+      businessId,
+      line.product.id,
+    );
+    const available = balance.quantity.sub(reservedQuantity);
+
+    if (available.lt(line.quantity)) {
+      throw new AppError(
+        409,
+        "Insufficient stock for this sale",
+        "INSUFFICIENT_STOCK",
+        {
+          details: {
+            productId: line.product.id,
+            productName: line.product.name,
+            available: formatQuantity(available),
+            requested: formatQuantity(line.quantity),
+          },
+        },
+      );
+    }
+  }
+
+  const subtotal = sumMoney(preparedLines.map((line) => line.lineSubtotal));
+
+  if (discountAmount.gt(subtotal)) {
+    throw new AppError(400, "Discount cannot exceed subtotal", "INVALID_DISCOUNT");
+  }
+
+  const totalAmount = subtractMoney(subtotal, discountAmount);
+  const walletAmount = toMoneyDecimalFromString(input.walletAmount ?? "0");
+
+  if (walletAmount.isNegative()) {
+    throw new AppError(400, "Invalid wallet amount", "INVALID_WALLET_AMOUNT");
+  }
+
+  if (walletAmount.gt(totalAmount)) {
+    throw new AppError(
+      400,
+      "Wallet amount cannot exceed sale total",
+      "INVALID_WALLET_AMOUNT",
+    );
+  }
+
+  const amountPaid =
+    input.amountPaid !== undefined
+      ? toMoneyDecimalFromString(input.amountPaid)
+      : subtractMoney(totalAmount, walletAmount);
+
+  if (amountPaid.isNegative()) {
+    throw new AppError(400, "Invalid amount paid", "INVALID_AMOUNT_PAID");
+  }
+
+  if (amountPaid.gt(totalAmount)) {
+    throw new AppError(400, "Amount paid cannot exceed total", "INVALID_AMOUNT_PAID");
+  }
+
+  if (walletAmount.add(amountPaid).gt(totalAmount)) {
+    throw new AppError(
+      400,
+      "Wallet and amount paid cannot exceed total",
+      "INVALID_WALLET_AMOUNT",
+    );
+  }
+
+  const outstandingAmount = subtractMoney(
+    subtractMoney(totalAmount, walletAmount),
+    amountPaid,
+  );
+
+  if (walletAmount.gt(0) && !input.customerId) {
+    throw new AppError(
+      400,
+      "Customer is required when using store credit",
+      "WALLET_CUSTOMER_REQUIRED",
+    );
+  }
+
+  if (outstandingAmount.gt(0) && !input.customerId) {
+    throw new AppError(
+      400,
+      "Customer is required for credit sales",
+      "CUSTOMER_REQUIRED_FOR_CREDIT",
+    );
+  }
+
+  if (amountPaid.gt(0) && !input.paymentMethod) {
+    throw new AppError(
+      400,
+      "Payment method is required when amount is paid",
+      "VALIDATION_ERROR",
+    );
+  }
+
+  let customerSnapshot: { id: string; name: string } | null = null;
+
+  if (input.customerId) {
+    const requireActive = outstandingAmount.gt(0) || walletAmount.gt(0);
+    const customer = await assertCustomerInBusiness(businessId, input.customerId, {
+      requireActive,
+    });
+    customerSnapshot = { id: customer.id, name: customer.name };
+  }
+
+  if (walletAmount.gt(0) && customerSnapshot) {
+    const wallet = await lockCustomerWallet(tx, businessId, customerSnapshot.id);
+
+    if (walletAmount.gt(wallet.balance)) {
+      throw new AppError(
+        409,
+        "Insufficient wallet balance",
+        "INSUFFICIENT_WALLET_BALANCE",
+        {
+          details: {
+            balance: formatMoney(wallet.balance),
+            requested: formatMoney(walletAmount),
+          },
+        },
+      );
+    }
+  }
+
+  const paymentStatus = deriveSalePaymentStatus(
+    walletAmount.add(amountPaid),
+    outstandingAmount,
+  );
+  const receiptNumber = await generateReceiptNumber(tx, businessId);
+
+  const createdSale = await tx.sale.create({
+    data: {
+      businessId,
+      createdByUserId,
+      customerId: customerSnapshot?.id ?? null,
+      customerNameSnapshot: customerSnapshot?.name ?? null,
+      receiptNumber,
+      subtotal,
+      discountAmount,
+      totalAmount,
+      amountPaid,
+      walletAmountUsed: walletAmount,
+      outstandingAmount,
+      paymentMethod: amountPaid.gt(0) ? input.paymentMethod! : null,
+      paymentSource: options.paymentSource ?? "MANUAL",
+      paymentProvider: options.paymentProvider ?? null,
+      providerReference: options.providerReference ?? null,
+      paymentStatus,
+      status: "COMPLETED",
+      notes: input.notes ?? null,
+      items: {
+        create: preparedLines.map((line) => ({
+          productId: line.product.id,
+          productNameSnapshot: line.product.name,
+          skuSnapshot: line.product.sku,
+          unitSnapshot: line.product.unit,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          costPriceSnapshot: line.product.costPrice,
+          lineSubtotal: line.lineSubtotal,
+        })),
+      },
+    },
+    include: {
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      customer: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      items: {
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  if (outstandingAmount.gt(0) && customerSnapshot) {
+    await tx.customerDebt.create({
+      data: {
+        businessId,
+        customerId: customerSnapshot.id,
+        saleId: createdSale.id,
+        originalAmount: outstandingAmount,
+        amountPaid: new Prisma.Decimal(0),
+        outstandingAmount,
+        status: deriveDebtStatus(outstandingAmount, new Prisma.Decimal(0)),
+      },
+    });
+  }
+
+  if (walletAmount.gt(0) && customerSnapshot) {
+    await debitWallet({
+      tx,
+      businessId,
+      customerId: customerSnapshot.id,
+      amount: walletAmount,
+      type: "SALE_PAYMENT",
+      createdByUserId,
+      referenceType: "SALE",
+      referenceId: createdSale.id,
+      notes: input.notes ?? undefined,
+    });
+  }
+
+  for (const line of preparedLines) {
+    const balance = lockedBalances.get(line.product.id)!;
+    const quantityBefore = balance.quantity;
+    const quantityAfter = quantityBefore.sub(line.quantity);
+    const quantityChange = line.quantity.negated();
+
+    await tx.inventoryBalance.update({
+      where: { id: balance.id },
+      data: { quantity: quantityAfter },
+    });
+
+    await tx.inventoryTransaction.create({
+      data: {
+        businessId,
+        productId: line.product.id,
+        performedByUserId: createdByUserId,
+        type: "SALE",
+        quantityChange,
+        quantityBefore,
+        quantityAfter,
+        reason: "Sale",
+        referenceType: "SALE",
+        referenceId: createdSale.id,
+        notes: input.notes ?? null,
+      },
+    });
+  }
+
+  return createdSale;
+}
+
 export async function createSale(
   businessId: string,
   createdByUserId: string,
@@ -204,317 +537,15 @@ export async function createSale(
     throw new AppError(400, "At least one item is required", "EMPTY_SALE");
   }
 
-  const normalizedItems = normalizeSaleItems(input.items);
-  const discountAmount = toMoneyDecimalFromString(input.discountAmount ?? "0");
-
-  const sale = await prisma.$transaction(async (tx) => {
-    const products = await tx.product.findMany({
-      where: {
-        id: {
-          in: normalizedItems.map((item) => item.productId),
-        },
-      },
-    });
-
-    const productMap = new Map(products.map((product) => [product.id, product]));
-    const preparedLines: PreparedSaleLine[] = [];
-
-    for (const item of normalizedItems) {
-      const product = productMap.get(item.productId);
-
-      if (!product) {
-        throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
-      }
-
-      if (product.businessId !== businessId) {
-        throw new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
-      }
-
-      if (!product.isActive) {
-        throw new AppError(
-          409,
-          "Product is not available for sale",
-          "PRODUCT_INACTIVE",
-          {
-            details: {
-              productId: product.id,
-              productName: product.name,
-            },
-          },
-        );
-      }
-
-      const unitPrice = product.sellingPrice;
-      const lineSubtotal = multiplyMoney(unitPrice, item.quantity);
-
-      preparedLines.push({
-        product,
-        quantity: item.quantity,
-        unitPrice,
-        lineSubtotal,
-      });
-    }
-
-    const lockedBalances = new Map<string, Awaited<ReturnType<typeof lockInventoryBalance>>>();
-
-    for (const line of preparedLines) {
-      const balance = await lockInventoryBalance(
-        tx,
-        businessId,
-        line.product.id,
-      );
-      lockedBalances.set(line.product.id, balance);
-
-      if (balance.quantity.lt(line.quantity)) {
-        throw new AppError(
-          409,
-          "Insufficient stock for this sale",
-          "INSUFFICIENT_STOCK",
-          {
-            details: {
-              productId: line.product.id,
-              productName: line.product.name,
-              available: formatQuantity(balance.quantity),
-              requested: formatQuantity(line.quantity),
-            },
-          },
-        );
-      }
-    }
-
-    const subtotal = sumMoney(preparedLines.map((line) => line.lineSubtotal));
-
-    if (discountAmount.gt(subtotal)) {
-      throw new AppError(
-        400,
-        "Discount cannot exceed subtotal",
-        "INVALID_DISCOUNT",
-      );
-    }
-
-    const totalAmount = subtractMoney(subtotal, discountAmount);
-
-    const walletAmount = toMoneyDecimalFromString(input.walletAmount ?? "0");
-
-    if (walletAmount.isNegative()) {
-      throw new AppError(400, "Invalid wallet amount", "INVALID_WALLET_AMOUNT");
-    }
-
-    if (walletAmount.gt(totalAmount)) {
-      throw new AppError(
-        400,
-        "Wallet amount cannot exceed sale total",
-        "INVALID_WALLET_AMOUNT",
-      );
-    }
-
-    const amountPaid =
-      input.amountPaid !== undefined
-        ? toMoneyDecimalFromString(input.amountPaid)
-        : subtractMoney(totalAmount, walletAmount);
-
-    if (amountPaid.isNegative()) {
-      throw new AppError(400, "Invalid amount paid", "INVALID_AMOUNT_PAID");
-    }
-
-    if (amountPaid.gt(totalAmount)) {
-      throw new AppError(
-        400,
-        "Amount paid cannot exceed total",
-        "INVALID_AMOUNT_PAID",
-      );
-    }
-
-    if (walletAmount.add(amountPaid).gt(totalAmount)) {
-      throw new AppError(
-        400,
-        "Wallet and amount paid cannot exceed total",
-        "INVALID_WALLET_AMOUNT",
-      );
-    }
-
-    const outstandingAmount = subtractMoney(
-      subtractMoney(totalAmount, walletAmount),
-      amountPaid,
-    );
-
-    if (walletAmount.gt(0) && !input.customerId) {
-      throw new AppError(
-        400,
-        "Customer is required when using store credit",
-        "WALLET_CUSTOMER_REQUIRED",
-      );
-    }
-
-    if (outstandingAmount.gt(0) && !input.customerId) {
-      throw new AppError(
-        400,
-        "Customer is required for credit sales",
-        "CUSTOMER_REQUIRED_FOR_CREDIT",
-      );
-    }
-
-    if (amountPaid.gt(0) && !input.paymentMethod) {
-      throw new AppError(
-        400,
-        "Payment method is required when amount is paid",
-        "VALIDATION_ERROR",
-      );
-    }
-
-    let customerSnapshot: { id: string; name: string } | null = null;
-
-    if (input.customerId) {
-      const requireActive = outstandingAmount.gt(0) || walletAmount.gt(0);
-      const customer = await assertCustomerInBusiness(
-        businessId,
-        input.customerId,
-        { requireActive },
-      );
-      customerSnapshot = { id: customer.id, name: customer.name };
-    }
-
-    if (walletAmount.gt(0) && customerSnapshot) {
-      const wallet = await lockCustomerWallet(
-        tx,
-        businessId,
-        customerSnapshot.id,
-      );
-
-      if (walletAmount.gt(wallet.balance)) {
-        throw new AppError(
-          409,
-          "Insufficient wallet balance",
-          "INSUFFICIENT_WALLET_BALANCE",
-          {
-            details: {
-              balance: formatMoney(wallet.balance),
-              requested: formatMoney(walletAmount),
-            },
-          },
-        );
-      }
-    }
-
-    const paymentStatus = deriveSalePaymentStatus(
-      walletAmount.add(amountPaid),
-      outstandingAmount,
-    );
-    const receiptNumber = await generateReceiptNumber(tx, businessId);
-
-    const createdSale = await tx.sale.create({
-      data: {
-        businessId,
-        createdByUserId,
-        customerId: customerSnapshot?.id ?? null,
-        customerNameSnapshot: customerSnapshot?.name ?? null,
-        receiptNumber,
-        subtotal,
-        discountAmount,
-        totalAmount,
-        amountPaid,
-        walletAmountUsed: walletAmount,
-        outstandingAmount,
-        paymentMethod: amountPaid.gt(0) ? input.paymentMethod! : null,
-        paymentStatus,
-        status: "COMPLETED",
-        notes: input.notes ?? null,
-        items: {
-          create: preparedLines.map((line) => ({
-            productId: line.product.id,
-            productNameSnapshot: line.product.name,
-            skuSnapshot: line.product.sku,
-            unitSnapshot: line.product.unit,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            costPriceSnapshot: line.product.costPrice,
-            lineSubtotal: line.lineSubtotal,
-          })),
-        },
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        customer: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        items: {
-          orderBy: { createdAt: "asc" },
-        },
-      },
-    });
-
-    if (outstandingAmount.gt(0) && customerSnapshot) {
-      await tx.customerDebt.create({
-        data: {
-          businessId,
-          customerId: customerSnapshot.id,
-          saleId: createdSale.id,
-          originalAmount: outstandingAmount,
-          amountPaid: new Prisma.Decimal(0),
-          outstandingAmount,
-          status: deriveDebtStatus(outstandingAmount, new Prisma.Decimal(0)),
-        },
-      });
-    }
-
-    if (walletAmount.gt(0) && customerSnapshot) {
-      await debitWallet({
-        tx,
-        businessId,
-        customerId: customerSnapshot.id,
-        amount: walletAmount,
-        type: "SALE_PAYMENT",
-        createdByUserId,
-        referenceType: "SALE",
-        referenceId: createdSale.id,
-        notes: input.notes ?? undefined,
-      });
-    }
-
-    for (const line of preparedLines) {
-      const balance = lockedBalances.get(line.product.id)!;
-      const quantityBefore = balance.quantity;
-      const quantityAfter = quantityBefore.sub(line.quantity);
-      const quantityChange = line.quantity.negated();
-
-      await tx.inventoryBalance.update({
-        where: { id: balance.id },
-        data: { quantity: quantityAfter },
-      });
-
-      await tx.inventoryTransaction.create({
-        data: {
-          businessId,
-          productId: line.product.id,
-          performedByUserId: createdByUserId,
-          type: "SALE",
-          quantityChange,
-          quantityBefore,
-          quantityAfter,
-          reason: "Sale",
-          referenceType: "SALE",
-          referenceId: createdSale.id,
-          notes: input.notes ?? null,
-        },
-      });
-    }
-
-    return createdSale;
-  });
+  const sale = await prisma.$transaction(async (tx) =>
+    finalizeSaleCheckoutInTransaction(tx, businessId, createdByUserId, input),
+  );
 
   return {
     sale: toSaleDetailResponse(sale),
   };
 }
+
 
 export async function listSales(businessId: string, query: ListSalesQuery) {
   const where = {
@@ -573,6 +604,9 @@ export async function listSales(businessId: string, query: ListSalesQuery) {
         refundedAmount: formatMoney(sale.refundedAmount),
         paymentStatus: sale.paymentStatus,
         paymentMethod: sale.paymentMethod,
+        paymentSource: sale.paymentSource ?? "MANUAL",
+        paymentProvider: sale.paymentProvider ?? null,
+        providerReference: sale.providerReference ?? null,
         status: sale.status,
         customer:
           sale.customerId && (sale.customerNameSnapshot ?? sale.customer?.name)
