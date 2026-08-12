@@ -91,6 +91,31 @@ export async function getRefundedQuantitiesBySaleItem(
   return map;
 }
 
+export async function getReturnedQuantitiesByPurchaseItem(
+  tx: TransactionClient,
+  purchaseId: string,
+): Promise<Map<string, Prisma.Decimal>> {
+  const rows = await tx.supplierReturnItem.groupBy({
+    by: ["purchaseItemId"],
+    where: {
+      supplierReturn: {
+        purchaseId,
+      },
+    },
+    _sum: {
+      quantity: true,
+    },
+  });
+
+  const map = new Map<string, Prisma.Decimal>();
+
+  for (const row of rows) {
+    map.set(row.purchaseItemId, row._sum.quantity ?? new Prisma.Decimal(0));
+  }
+
+  return map;
+}
+
 function formatDateKey(date: Date): string {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -120,6 +145,44 @@ export async function generateRefundNumber(
   `;
 
   const sequence = await tx.saleRefundSequence.update({
+    where: {
+      businessId_dateKey: {
+        businessId,
+        dateKey,
+      },
+    },
+    data: {
+      lastNumber: {
+        increment: 1,
+      },
+    },
+  });
+
+  return `${prefix}${String(sequence.lastNumber).padStart(6, "0")}`;
+}
+
+export async function generateSupplierReturnNumber(
+  tx: TransactionClient,
+  businessId: string,
+): Promise<string> {
+  const dateKey = formatDateKey(new Date());
+  const prefix = `SR-${dateKey}-`;
+
+  await tx.$executeRaw`
+    INSERT INTO "SupplierReturnSequence" ("id", "businessId", "dateKey", "lastNumber", "updatedAt")
+    VALUES (gen_random_uuid(), ${businessId}::uuid, ${dateKey}, 0, NOW())
+    ON CONFLICT ("businessId", "dateKey") DO NOTHING
+  `;
+
+  await tx.$executeRaw`
+    SELECT "id"
+    FROM "SupplierReturnSequence"
+    WHERE "businessId" = ${businessId}::uuid
+      AND "dateKey" = ${dateKey}
+    FOR UPDATE
+  `;
+
+  const sequence = await tx.supplierReturnSequence.update({
     where: {
       businessId_dateKey: {
         businessId,

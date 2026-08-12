@@ -27,6 +27,7 @@ enum InventoryTransactionType {
   SALE_REFUND
   SALE_VOID
   PURCHASE_VOID
+  SUPPLIER_RETURN
 }
 
 enum SaleStatus {
@@ -77,6 +78,7 @@ model User {
   saleRefundsCreated       SaleRefund[]         @relation("SaleRefundCreatedBy")
   saleVoidsCreated         SaleVoid[]           @relation("SaleVoidCreatedBy")
   purchaseVoidsCreated     PurchaseVoid[]       @relation("PurchaseVoidCreatedBy")
+  supplierReturnsCreated   SupplierReturn[]     @relation("SupplierReturnCreatedBy")
 
   @@index([email])
 }
@@ -107,6 +109,8 @@ model Business {
   saleRefundSequences   SaleRefundSequence[]
   saleVoids             SaleVoid[]
   purchaseVoids         PurchaseVoid[]
+  supplierReturns       SupplierReturn[]
+  supplierReturnSequences SupplierReturnSequence[]
 
   @@index([name])
 }
@@ -163,6 +167,7 @@ model Product {
   saleItems            SaleItem[]
   purchaseItems        PurchaseItem[]
   saleRefundItems      SaleRefundItem[]
+  supplierReturnItems  SupplierReturnItem[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -448,6 +453,7 @@ model Supplier {
   purchases        Purchase[]
   payables         SupplierPayable[]
   supplierPayments SupplierPayment[]
+  supplierReturns  SupplierReturn[]
 
   @@index([businessId])
   @@index([businessId, name])
@@ -471,6 +477,7 @@ model Purchase {
   paymentMethod       PaymentMethod?
   paymentStatus       SalePaymentStatus @default(PAID)
   status              PurchaseStatus    @default(COMPLETED)
+  returnedAmount      Decimal           @default(0) @db.Decimal(19, 4)
   notes               String?
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -481,6 +488,7 @@ model Purchase {
   items     PurchaseItem[]
   payable   SupplierPayable?
   void      PurchaseVoid?
+  returns   SupplierReturn[]
 
   @@index([businessId])
   @@index([businessId, createdAt])
@@ -503,9 +511,70 @@ model PurchaseItem {
 
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supplierReturnItems SupplierReturnItem[]
 
   @@index([purchaseId])
   @@index([productId])
+}
+
+model SupplierReturn {
+  id                  String         @id @default(uuid()) @db.Uuid
+  businessId          String         @db.Uuid
+  purchaseId          String         @db.Uuid
+  supplierId          String         @db.Uuid
+  returnNumber        String         @unique
+  returnAmount        Decimal        @db.Decimal(19, 4)
+  payableReduction    Decimal        @default(0) @db.Decimal(19, 4)
+  cashRefundAmount    Decimal        @default(0) @db.Decimal(19, 4)
+  refundPaymentMethod PaymentMethod?
+  reason              String
+  notes               String?
+  createdByUserId     String         @db.Uuid
+  createdAt           DateTime       @default(now())
+
+  business  Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  purchase  Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  supplier  Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy User                 @relation("SupplierReturnCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  items     SupplierReturnItem[]
+
+  @@index([businessId])
+  @@index([purchaseId])
+  @@index([supplierId])
+  @@index([businessId, createdAt])
+  @@index([createdByUserId])
+}
+
+model SupplierReturnItem {
+  id                String   @id @default(uuid()) @db.Uuid
+  supplierReturnId  String   @db.Uuid
+  purchaseItemId    String   @db.Uuid
+  productId         String   @db.Uuid
+  quantity          Decimal  @db.Decimal(19, 4)
+  unitCostSnapshot  Decimal  @db.Decimal(19, 4)
+  lineReturnAmount  Decimal  @db.Decimal(19, 4)
+  createdAt         DateTime @default(now())
+
+  supplierReturn SupplierReturn @relation(fields: [supplierReturnId], references: [id], onDelete: Cascade)
+  purchaseItem   PurchaseItem   @relation(fields: [purchaseItemId], references: [id], onDelete: Restrict)
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([supplierReturnId])
+  @@index([purchaseItemId])
+  @@index([productId])
+}
+
+model SupplierReturnSequence {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  dateKey    String
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, dateKey])
+  @@index([businessId])
 }
 
 model PurchaseVoid {

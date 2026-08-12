@@ -192,6 +192,8 @@ export interface PurchaseDetail {
   totalAmount: string;
   amountPaid: string;
   outstandingAmount: string;
+  returnedAmount: string;
+  effectivePurchaseTotal: string;
   paymentStatus: PurchasePaymentStatus;
   status: "COMPLETED" | "VOIDED";
   paymentMethod: PaymentMethod | null;

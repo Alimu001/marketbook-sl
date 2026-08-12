@@ -1,8 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
-import type { ListRefundsQuery } from "@marketbook/shared/validation";
+import type { ListRefundsQuery, ListSupplierReturnsQuery } from "@marketbook/shared/validation";
 import { getRouteParam } from "../../lib/routeParams.js";
 import { AppError } from "../../middleware/errorHandler.js";
 import * as refundService from "./refund.service.js";
+import * as supplierReturnService from "./supplierReturn.service.js";
 import * as voidService from "./void.service.js";
 
 function getBusinessId(req: Request): string {
@@ -53,6 +54,16 @@ function getRefundId(req: Request): string {
   }
 
   return refundId;
+}
+
+function getReturnId(req: Request): string {
+  const returnId = getRouteParam(req.params.returnId);
+
+  if (!returnId) {
+    throw new AppError(400, "Return ID is required", "VALIDATION_ERROR");
+  }
+
+  return returnId;
 }
 
 export async function createSaleRefund(
@@ -207,6 +218,95 @@ export async function getPurchaseVoid(
       getPurchaseId(req),
     );
     res.status(200).json({ data: { void: voidRecord } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function createSupplierReturn(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const result = await supplierReturnService.createSupplierReturn(
+      getBusinessId(req),
+      getPurchaseId(req),
+      getUserId(req),
+      req.body,
+    );
+    res.status(201).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listPurchaseReturns(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const returns = await supplierReturnService.listPurchaseReturns(
+      getBusinessId(req),
+      getPurchaseId(req),
+    );
+    res.status(200).json({ data: { returns } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getPurchaseReturnSummary(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const summary = await supplierReturnService.getPurchaseReturnSummary(
+      getBusinessId(req),
+      getPurchaseId(req),
+    );
+    res.status(200).json({ data: summary });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listBusinessSupplierReturns(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const result = await supplierReturnService.listBusinessSupplierReturns(
+      getBusinessId(req),
+      req.validatedQuery as ListSupplierReturnsQuery,
+    );
+    res.status(200).json({
+      data: result.items,
+      meta: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getSupplierReturnDetail(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const supplierReturn = await supplierReturnService.getSupplierReturnDetail(
+      getBusinessId(req),
+      getReturnId(req),
+    );
+    res.status(200).json({ data: { supplierReturn } });
   } catch (error) {
     next(error);
   }

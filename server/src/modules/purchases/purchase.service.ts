@@ -137,6 +137,7 @@ function toPurchaseDetailResponse(
     totalAmount: Prisma.Decimal;
     amountPaid: Prisma.Decimal;
     outstandingAmount: Prisma.Decimal;
+    returnedAmount: Prisma.Decimal;
     paymentStatus: "PAID" | "PARTIALLY_PAID" | "UNPAID";
     paymentMethod: PaymentMethod | null;
     status: "COMPLETED" | "VOIDED";
@@ -167,6 +168,11 @@ function toPurchaseDetailResponse(
     }>;
   },
 ): PurchaseDetailResponse {
+  const effectivePurchaseTotal = subtractMoney(
+    purchase.totalAmount,
+    purchase.returnedAmount,
+  );
+
   return {
     id: purchase.id,
     businessId: purchase.businessId,
@@ -176,6 +182,8 @@ function toPurchaseDetailResponse(
     totalAmount: formatMoney(purchase.totalAmount),
     amountPaid: formatMoney(purchase.amountPaid),
     outstandingAmount: formatMoney(purchase.outstandingAmount),
+    returnedAmount: formatMoney(purchase.returnedAmount),
+    effectivePurchaseTotal: formatMoney(effectivePurchaseTotal),
     paymentStatus: purchase.paymentStatus,
     paymentMethod: purchase.paymentMethod,
     status: purchase.status,

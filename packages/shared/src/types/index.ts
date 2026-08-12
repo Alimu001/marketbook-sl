@@ -67,6 +67,16 @@ export type {
 } from "./supplier.js";
 
 export type {
+  CreateSupplierReturnResponse,
+  PurchaseItemReturnableSummary,
+  PurchaseReturnSummary,
+  SupplierReturnItemResponse,
+  SupplierReturnListItem,
+  SupplierReturnResponse,
+  SupplierReturnUserSummary,
+} from "./supplierReturn.js";
+
+export type {
   ExpenseCategoryRef,
   ExpenseCategorySummary,
   ExpenseDetail,

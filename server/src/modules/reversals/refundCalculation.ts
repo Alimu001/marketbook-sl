@@ -38,3 +38,6 @@ export function calculateEstimatedRefundPerUnit(
     new Prisma.Decimal(1),
   );
 }
+
+export const calculateLineReturnAmount = calculateLineRefundAmount;
+export const calculateEstimatedReturnPerUnit = calculateEstimatedRefundPerUnit;

@@ -10,7 +10,8 @@ export type InventoryTransactionType =
   | "PURCHASE"
   | "SALE_REFUND"
   | "SALE_VOID"
-  | "PURCHASE_VOID";
+  | "PURCHASE_VOID"
+  | "SUPPLIER_RETURN";
 
 export interface InventoryBalanceResponse {
   productId: string;

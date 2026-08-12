@@ -167,14 +167,18 @@ async function aggregatePurchaseSpend(
     where,
     _sum: {
       totalAmount: true,
+      returnedAmount: true,
       amountPaid: true,
       outstandingAmount: true,
     },
     _count: true,
   });
 
+  const grossSpend = aggregate._sum.totalAmount ?? new Prisma.Decimal(0);
+  const returned = aggregate._sum.returnedAmount ?? new Prisma.Decimal(0);
+
   return {
-    spend: aggregate._sum.totalAmount ?? new Prisma.Decimal(0),
+    spend: grossSpend.sub(returned),
     paid: aggregate._sum.amountPaid ?? new Prisma.Decimal(0),
     outstanding: aggregate._sum.outstandingAmount ?? new Prisma.Decimal(0),
     count: aggregate._count,

@@ -153,6 +153,18 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "This purchase cannot be voided because some of its stock has already been sold or removed.";
       case "INVALID_REFUND":
         return "Invalid refund request.";
+      case "SUPPLIER_RETURN_NOT_FOUND":
+        return "Supplier return not found.";
+      case "PURCHASE_ITEM_NOT_FOUND":
+        return "Purchase item not found.";
+      case "REFUND_PAYMENT_METHOD_REQUIRED":
+        return "Choose how the supplier refunded the returned amount.";
+      case "INSUFFICIENT_STOCK_FOR_SUPPLIER_RETURN":
+        return "Not enough stock is currently available to return this quantity to the supplier.";
+      case "PURCHASE_ALREADY_PARTIALLY_RETURNED":
+        return "This purchase has already been partially returned and can no longer be fully voided.";
+      case "INVALID_SUPPLIER_RETURN":
+        return "Invalid supplier return request.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }

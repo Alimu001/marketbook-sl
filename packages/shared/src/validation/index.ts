@@ -140,3 +140,10 @@ export {
   type SaleVoidInput,
   type PurchaseVoidInput,
 } from "./reversal.js";
+
+export {
+  createSupplierReturnSchema,
+  listSupplierReturnsQuerySchema,
+  type CreateSupplierReturnInput,
+  type ListSupplierReturnsQuery,
+} from "./supplierReturn.js";

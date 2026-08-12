@@ -263,6 +263,18 @@ export async function voidPurchase(
       );
     }
 
+    const existingReturnCount = await tx.supplierReturn.count({
+      where: { purchaseId, businessId },
+    });
+
+    if (existingReturnCount > 0 || purchase.returnedAmount.gt(0)) {
+      throw new AppError(
+        409,
+        "Purchase has partial supplier returns and cannot be voided",
+        "PURCHASE_ALREADY_PARTIALLY_RETURNED",
+      );
+    }
+
     if (purchase.payable && purchase.payable.amountPaid.gt(0)) {
       throw new AppError(
         409,

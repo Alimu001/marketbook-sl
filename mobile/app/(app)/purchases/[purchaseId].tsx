@@ -9,13 +9,24 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getPurchase } from "@/api/purchases";
+import {
+  getPurchaseReturnSummary,
+  listPurchaseReturns,
+  type PurchaseReturnSummary,
+  type SupplierReturnDetail,
+} from "@/api/supplierReturns";
 import { ApiError, getUserFacingErrorMessage } from "@/api/errors";
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/business";
 import { FormButton, FormMessage } from "@/components/AuthScreen";
 import { formatQuantityDisplay } from "@/inventory/quantity";
 import { formatMoneyDisplay } from "@/products/money";
-import { purchaseNewHref, purchaseVoidHref, purchasesHref } from "@/navigation/hrefs";
+import {
+  purchaseNewHref,
+  purchaseReturnHref,
+  purchaseVoidHref,
+  purchasesHref,
+} from "@/navigation/hrefs";
 import {
   formatPurchasePaymentStatus,
   formatSupplierDateTime,
@@ -23,22 +34,28 @@ import {
 } from "@/suppliers";
 import { formatPaymentMethod } from "@/sales";
 import { canVoidPurchase } from "@/reversals/permissions";
+import { canCreateSupplierReturn } from "@/reversals/supplierReturnPermissions";
 
 export default function PurchaseDetailScreen() {
   const router = useRouter();
-  const { purchaseId, completed } = useLocalSearchParams<{
+  const { purchaseId, completed, returned } = useLocalSearchParams<{
     purchaseId: string;
     completed?: string;
+    returned?: string;
   }>();
   const { accessToken, user } = useAuth();
   const { currentBusiness } = useBusiness();
 
   const [purchase, setPurchase] = useState<PurchaseDetail | null>(null);
+  const [returnSummary, setReturnSummary] =
+    useState<PurchaseReturnSummary | null>(null);
+  const [returns, setReturns] = useState<SupplierReturnDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
   const role = currentBusiness?.role;
   const canVoid = role ? canVoidPurchase(role) : false;
+  const canReturn = role ? canCreateSupplierReturn(role) : false;
   const businessId = currentBusiness?.id;
 
   const loadPurchase = useCallback(async () => {
@@ -50,8 +67,14 @@ export default function PurchaseDetailScreen() {
     setErrorMessage(undefined);
 
     try {
-      const detail = await getPurchase(accessToken, businessId, purchaseId);
+      const [detail, summary, returnList] = await Promise.all([
+        getPurchase(accessToken, businessId, purchaseId),
+        getPurchaseReturnSummary(accessToken, businessId, purchaseId),
+        listPurchaseReturns(accessToken, businessId, purchaseId),
+      ]);
       setPurchase(detail);
+      setReturnSummary(summary);
+      setReturns(returnList.returns);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         router.replace("/(auth)/login");
@@ -106,6 +129,9 @@ export default function PurchaseDetailScreen() {
             type="success"
             message="Purchase recorded successfully."
           />
+        ) : null}
+        {returned === "1" ? (
+          <FormMessage type="success" message="Supplier return completed successfully." />
         ) : null}
 
         {purchase.status === "VOIDED" ? (
@@ -179,10 +205,46 @@ export default function PurchaseDetailScreen() {
         <Text style={styles.metaLine}>
           Payment: {formatPaymentMethod(purchase.paymentMethod)}
         </Text>
+        {returnSummary ? (
+          <>
+            <Text style={styles.metaLine}>
+              Returned: {formatMoneyDisplay(returnSummary.returnedAmount)}
+            </Text>
+            <Text style={styles.metaLine}>
+              Effective Purchase:{" "}
+              {formatMoneyDisplay(returnSummary.effectivePurchaseTotal)}
+            </Text>
+          </>
+        ) : null}
         <Text style={styles.metaLine}>Recorded by: {recordedByName}</Text>
 
+        {returns.length > 0 ? (
+          <>
+            <View style={styles.divider} />
+            <Text style={styles.sectionTitle}>Return History</Text>
+            {returns.map((entry) => (
+              <View key={entry.id} style={styles.returnRow}>
+                <Text style={styles.returnNumber}>{entry.returnNumber}</Text>
+                <Text style={styles.returnAmount}>
+                  {formatMoneyDisplay(entry.returnAmount)}
+                </Text>
+                <Text style={styles.returnReason}>{entry.reason}</Text>
+              </View>
+            ))}
+          </>
+        ) : null}
+
         <View style={styles.actions}>
-          {purchase.status === "COMPLETED" && canVoid ? (
+          {purchase.status === "COMPLETED" && canReturn && returnSummary ? (
+            <FormButton
+              label="Return Items"
+              onPress={() => router.push(purchaseReturnHref(purchaseId))}
+            />
+          ) : null}
+          {purchase.status === "COMPLETED" &&
+          canVoid &&
+          returnSummary &&
+          returnSummary.returnedAmount === "0.00" ? (
             <FormButton
               label="Void Purchase"
               variant="secondary"
@@ -318,5 +380,23 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 16,
     textAlign: "center",
+  },
+  returnRow: {
+    marginBottom: 12,
+    gap: 2,
+  },
+  returnNumber: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  returnAmount: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F766E",
+  },
+  returnReason: {
+    fontSize: 14,
+    color: "#64748B",
   },
 });

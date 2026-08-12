@@ -299,7 +299,7 @@ export async function getSupplierHistory(
 ): Promise<SupplierHistoryResponse> {
   await assertSupplierInBusiness(businessId, supplierId);
 
-  const [purchases, payables, payments] = await Promise.all([
+  const [purchases, payables, payments, returns] = await Promise.all([
     prisma.purchase.findMany({
       where: { businessId, supplierId },
       orderBy: { createdAt: "desc" },
@@ -318,6 +318,14 @@ export async function getSupplierHistory(
           include: { purchase: { select: { purchaseNumber: true } } },
         },
         recordedBy: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    prisma.supplierReturn.findMany({
+      where: { businessId, supplierId },
+      include: {
+        purchase: { select: { purchaseNumber: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -358,6 +366,17 @@ export async function getSupplierHistory(
       },
       createdAt: payment.createdAt.toISOString(),
       purchaseNumber: payment.payable.purchase.purchaseNumber,
+    })),
+    returns: returns.map((entry) => ({
+      id: entry.id,
+      returnNumber: entry.returnNumber,
+      purchaseId: entry.purchaseId,
+      purchaseNumber: entry.purchase.purchaseNumber,
+      returnAmount: formatMoney(entry.returnAmount),
+      payableReduction: formatMoney(entry.payableReduction),
+      cashRefundAmount: formatMoney(entry.cashRefundAmount),
+      reason: entry.reason,
+      createdAt: entry.createdAt.toISOString(),
     })),
   };
 }

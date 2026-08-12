@@ -49,6 +49,16 @@ export function purchaseVoidHref(purchaseId: string): Href {
   return `/(app)/purchases/void/${purchaseId}` as Href;
 }
 
+export function purchaseReturnHref(purchaseId: string): Href {
+  return `/(app)/purchases/return/${purchaseId}` as Href;
+}
+
+export const supplierReturnsHref = "/(app)/supplier-returns" as Href;
+
+export function supplierReturnDetailHref(returnId: string): Href {
+  return `/(app)/supplier-returns/${returnId}` as Href;
+}
+
 export const refundsHref = "/(app)/refunds" as Href;
 
 export function refundDetailHref(refundId: string): Href {

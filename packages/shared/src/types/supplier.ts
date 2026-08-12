@@ -88,6 +88,17 @@ export interface SupplierHistoryResponse {
   }>;
   payables: SupplierPayableSummary[];
   payments: Array<SupplierPaymentResponse & { purchaseNumber: string }>;
+  returns: Array<{
+    id: string;
+    returnNumber: string;
+    purchaseId: string;
+    purchaseNumber: string;
+    returnAmount: string;
+    payableReduction: string;
+    cashRefundAmount: string;
+    reason: string;
+    createdAt: string;
+  }>;
 }
 
 export interface PurchaseSupplierSummary {
@@ -136,6 +147,8 @@ export interface PurchaseDetailResponse {
   totalAmount: string;
   amountPaid: string;
   outstandingAmount: string;
+  returnedAmount: string;
+  effectivePurchaseTotal: string;
   paymentStatus: PurchasePaymentStatus;
   paymentMethod: "CASH" | "MOBILE_MONEY" | "BANK_TRANSFER" | null;
   status: PurchaseStatus;
