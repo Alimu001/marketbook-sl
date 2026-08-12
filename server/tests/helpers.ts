@@ -59,6 +59,22 @@ export async function resetBizTestData(): Promise<void> {
       where: { businessId: { in: testBusinessIds } },
     });
 
+    await prisma.supplierReturnItem.deleteMany({
+      where: {
+        supplierReturn: {
+          businessId: { in: testBusinessIds },
+        },
+      },
+    });
+
+    await prisma.supplierReturn.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.supplierReturnSequence.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
     await prisma.purchaseItem.deleteMany({
       where: {
         purchase: {
@@ -373,6 +389,10 @@ export function purchaseReversalPath(
   suffix = "",
 ) {
   return `/api/v1/businesses/${businessId}/purchases/${purchaseId}${suffix}`;
+}
+
+export function supplierReturnsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/supplier-returns${suffix}`;
 }
 
 export function productInventoryPath(

@@ -173,7 +173,7 @@ async function setupPaidPurchase(
     purchaseResponse,
     purchaseId: purchaseResponse.body.data.purchase.id as string,
     purchaseItemId: purchaseResponse.body.data.purchase.items[0].id as string,
-    supplierId: purchaseResponse.body.data.purchase.supplierId as string,
+    supplierId: purchaseResponse.body.data.purchase.supplier.id as string,
   };
 }
 
@@ -706,6 +706,7 @@ describe("Supplier Returns API", () => {
         productId,
         {
           items: [{ productId, quantity: "5", unitCost: "95" }],
+          amountPaid: "475",
         },
       );
       expect(purchaseResponse.status).toBe(201);
@@ -728,7 +729,7 @@ describe("Supplier Returns API", () => {
         "95.00",
       );
       expect(response.body.data.supplierReturn.items[0].lineReturnAmount).toBe(
-        "100.00",
+        "95.00",
       );
     });
 
@@ -1032,8 +1033,14 @@ describe("Supplier Returns API", () => {
       const { purchaseId, purchaseItemId } = await setupPaidPurchase(
         owner.accessToken,
         businessId,
-        { amountPaid: "100", paymentMethod: "CASH" },
+        { amountPaid: "0" },
       );
+      const payableId = await getPayableIdForPurchase(businessId, purchaseId);
+
+      await request(app)
+        .post(payablesPath(businessId, `/${payableId}/payments`))
+        .set(authHeader(owner.accessToken))
+        .send({ amount: "100", paymentMethod: "CASH" });
 
       await createSupplierReturn(owner.accessToken, businessId, purchaseId, {
         items: [{ purchaseItemId, quantity: "2" }],
