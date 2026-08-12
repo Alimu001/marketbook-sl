@@ -46,6 +46,10 @@ export function saleVoidHref(saleId: string): Href {
   return `/(app)/sales/void/${saleId}` as Href;
 }
 
+export function salePaymentHref(paymentId: string): Href {
+  return `/(app)/sales/payment/${paymentId}` as Href;
+}
+
 export function purchaseVoidHref(purchaseId: string): Href {
   return `/(app)/purchases/void/${purchaseId}` as Href;
 }

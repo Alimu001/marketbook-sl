@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { createSale } from "@/api/sales";
+import { initiatePayment, listPaymentProviders } from "@/api/payments";
 import { getCustomerWallet } from "@/api/wallet";
 import { listInventory } from "@/api/inventory";
 import { listProducts } from "@/api/products";
@@ -35,17 +36,23 @@ import type { Product } from "@/products/types";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
 import { customerSelectHref, saleDetailHref } from "@/navigation/hrefs";
 import {
-  PAYMENT_METHODS,
+  CHECKOUT_PAYMENT_OPTIONS,
   compareMoney,
   isValidMoneyInput,
   multiplyMoney,
   subtractMoney,
   sumMoney,
   useSaleCart,
+  type CheckoutPaymentMode,
   type PaymentMethod,
 } from "@/sales";
 
 const PAGE_SIZE = 20;
+
+function createIdempotencyKey(): string {
+  const randomPart = Math.random().toString(36).slice(2, 12);
+  return `mobile-${Date.now()}-${randomPart}`;
+}
 
 interface PosProduct {
   productId: string;
@@ -83,12 +90,42 @@ export default function NewSaleScreen() {
   const [amountPaidTouched, setAmountPaidTouched] = useState(false);
   const [walletAmount, setWalletAmount] = useState("");
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMode>("CASH");
+  const [orangeMoneyPhone, setOrangeMoneyPhone] = useState("");
+  const [configuredProviders, setConfiguredProviders] = useState<
+    Set<"MOCK" | "ORANGE_MONEY">
+  >(new Set());
   const [checkoutError, setCheckoutError] = useState<string | undefined>();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const businessId = currentBusiness?.id;
+  const isOrangeMoneyCheckout = paymentMethod === "ORANGE_MONEY";
+
+  const availablePaymentOptions = useMemo(() => {
+    return CHECKOUT_PAYMENT_OPTIONS.filter((option) => {
+      if (option.value === "ORANGE_MONEY") {
+        return configuredProviders.has("ORANGE_MONEY");
+      }
+
+      return true;
+    });
+  }, [configuredProviders]);
+
+  const loadProviders = useCallback(async () => {
+    if (!accessToken || !businessId) {
+      return;
+    }
+
+    try {
+      const response = await listPaymentProviders(accessToken, businessId);
+      setConfiguredProviders(
+        new Set(response.providers.map((entry) => entry.provider)),
+      );
+    } catch {
+      setConfiguredProviders(new Set());
+    }
+  }, [accessToken, businessId]);
 
   const loadProducts = useCallback(async () => {
     if (!accessToken || !businessId) {
@@ -140,6 +177,19 @@ export default function NewSaleScreen() {
   useEffect(() => {
     void loadProducts();
   }, [loadProducts]);
+
+  useEffect(() => {
+    void loadProviders();
+  }, [loadProviders]);
+
+  useEffect(() => {
+    if (
+      paymentMethod === "ORANGE_MONEY" &&
+      !configuredProviders.has("ORANGE_MONEY")
+    ) {
+      setPaymentMethod("CASH");
+    }
+  }, [paymentMethod, configuredProviders]);
 
   const subtotal = useMemo(() => {
     const lineTotals = cartItems.map((item) =>
@@ -206,6 +256,24 @@ export default function NewSaleScreen() {
   const isCreditSale = balanceDue !== null && compareMoney(balanceDue, "0") === 1;
   const requiresPaymentMethod =
     effectiveAmountPaid !== null && compareMoney(effectiveAmountPaid, "0") === 1;
+  const manualPaymentMethod = isOrangeMoneyCheckout
+    ? null
+    : (paymentMethod as PaymentMethod);
+
+  useEffect(() => {
+    if (isOrangeMoneyCheckout && total) {
+      if (
+        effectiveWalletAmount &&
+        compareMoney(effectiveWalletAmount, "0") === 1
+      ) {
+        setAmountPaid(subtractMoney(total, effectiveWalletAmount) ?? total);
+        return;
+      }
+
+      setAmountPaid(total);
+      setAmountPaidTouched(false);
+    }
+  }, [isOrangeMoneyCheckout, total, effectiveWalletAmount]);
 
   useEffect(() => {
     if (total && !amountPaidTouched) {
@@ -335,6 +403,21 @@ export default function NewSaleScreen() {
       return;
     }
 
+    if (isOrangeMoneyCheckout) {
+      const phone = orangeMoneyPhone.trim();
+      if (phone.length < 7) {
+        setCheckoutError("Enter a valid Orange Money phone number.");
+        return;
+      }
+
+      if (isCreditSale) {
+        setCheckoutError(
+          "Orange Money requires the full balance to be paid now.",
+        );
+        return;
+      }
+    }
+
     for (const item of cartItems) {
       if (quantityExceedsStock(item.quantity, item.availableStock)) {
         setCheckoutError(
@@ -349,6 +432,34 @@ export default function NewSaleScreen() {
     setIsCheckingOut(true);
 
     try {
+      if (isOrangeMoneyCheckout) {
+        const result = await initiatePayment(accessToken, businessId, {
+          provider: "ORANGE_MONEY",
+          phoneNumber: orangeMoneyPhone.trim(),
+          idempotencyKey: createIdempotencyKey(),
+          sale: {
+            items: cartItems.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            })),
+            discountAmount,
+            customerId: selectedCustomer?.id,
+            ...(effectiveWalletAmount &&
+            compareMoney(effectiveWalletAmount, "0") === 1
+              ? { walletAmount: effectiveWalletAmount }
+              : {}),
+          },
+        });
+
+        clearCart();
+        clearSelectedCustomer();
+        router.replace({
+          pathname: "/(app)/sales/payment/[paymentId]",
+          params: { paymentId: result.payment.id },
+        });
+        return;
+      }
+
       const result = await createSale(accessToken, businessId, {
         items: cartItems.map((item) => ({
           productId: item.productId,
@@ -360,7 +471,9 @@ export default function NewSaleScreen() {
           ? { walletAmount: effectiveWalletAmount }
           : {}),
         amountPaid: effectiveAmountPaid,
-        ...(requiresPaymentMethod ? { paymentMethod } : {}),
+        ...(requiresPaymentMethod && manualPaymentMethod
+          ? { paymentMethod: manualPaymentMethod }
+          : {}),
       });
 
       clearCart();
@@ -643,7 +756,7 @@ export default function NewSaleScreen() {
           <>
             <Text style={styles.sectionTitle}>Payment Method</Text>
             <View style={styles.paymentMethods}>
-              {PAYMENT_METHODS.map((method) => (
+              {availablePaymentOptions.map((method) => (
                 <Pressable
                   key={method.value}
                   accessibilityRole="button"
@@ -665,11 +778,29 @@ export default function NewSaleScreen() {
                 </Pressable>
               ))}
             </View>
+            {isOrangeMoneyCheckout ? (
+              <View style={styles.discountSection}>
+                <Text style={styles.summaryLabel}>Orange Money Phone</Text>
+                <TextInput
+                  value={orangeMoneyPhone}
+                  onChangeText={setOrangeMoneyPhone}
+                  keyboardType="phone-pad"
+                  placeholder="Enter customer phone number"
+                  style={styles.discountInput}
+                />
+              </View>
+            ) : null}
           </>
         ) : null}
 
         <FormButton
-          label={isCheckingOut ? "Processing..." : "Complete Sale"}
+          label={
+            isCheckingOut
+              ? "Processing..."
+              : isOrangeMoneyCheckout
+                ? "Pay with Orange Money"
+                : "Complete Sale"
+          }
           disabled={isCheckingOut || cartItems.length === 0}
           onPress={() => void handleCheckout()}
         />

@@ -28,9 +28,11 @@ import {
 } from "@/reversals/permissions";
 import {
   formatPaymentMethod,
+  formatPaymentProvider,
   formatSaleDateTime,
   formatSalePaymentStatus,
   compareMoney,
+  maskProviderReference,
   type SaleDetail,
 } from "@/sales";
 
@@ -188,9 +190,24 @@ export default function SaleDetailScreen() {
         <Text style={styles.metaLine}>
           Status: {formatSalePaymentStatus(sale.paymentStatus)}
         </Text>
+        {sale.paymentSource === "PROVIDER" ? (
+          <View style={styles.verifiedBadge}>
+            <Text style={styles.verifiedBadgeText}>Verified</Text>
+          </View>
+        ) : null}
         <Text style={styles.metaLine}>
-          Payment: {formatPaymentMethod(sale.paymentMethod)}
+          Payment:{" "}
+          {sale.paymentSource === "PROVIDER" && sale.paymentProvider
+            ? formatPaymentProvider(sale.paymentProvider)
+            : formatPaymentMethod(sale.paymentMethod)}
         </Text>
+        {sale.paymentSource === "PROVIDER" &&
+        sale.paymentProvider === "ORANGE_MONEY" &&
+        sale.providerReference ? (
+          <Text style={styles.metaLine}>
+            Reference: {maskProviderReference(sale.providerReference)}
+          </Text>
+        ) : null}
         {reversalSummary ? (
           <>
             <Text style={styles.metaLine}>
@@ -348,6 +365,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#475569",
     fontWeight: "600",
+  },
+  verifiedBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#DCFCE7",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  verifiedBadgeText: {
+    color: "#166534",
+    fontSize: 13,
+    fontWeight: "700",
   },
   actions: {
     marginTop: 16,

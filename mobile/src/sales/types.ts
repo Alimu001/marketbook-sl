@@ -1,5 +1,11 @@
 export type PaymentMethod = "CASH" | "MOBILE_MONEY" | "BANK_TRANSFER";
 
+export type CheckoutPaymentMode = PaymentMethod | "ORANGE_MONEY";
+
+export type PaymentSource = "MANUAL" | "PROVIDER";
+
+export type PaymentProvider = "MOCK" | "ORANGE_MONEY" | "AFRIMONEY";
+
 export type SalePaymentStatus = "PAID" | "PARTIALLY_PAID" | "UNPAID";
 
 export interface SaleUserSummary {
@@ -23,6 +29,9 @@ export interface SaleListItem {
   refundedAmount: string;
   paymentStatus: SalePaymentStatus;
   paymentMethod: PaymentMethod | null;
+  paymentSource?: PaymentSource;
+  paymentProvider?: PaymentProvider | null;
+  providerReference?: string | null;
   status: "COMPLETED" | "VOIDED";
   customer: SaleCustomerSummary | null;
   createdBy: SaleUserSummary;
@@ -57,6 +66,9 @@ export interface SaleDetail {
   remainingRefundableAmount: string;
   paymentStatus: SalePaymentStatus;
   paymentMethod: PaymentMethod | null;
+  paymentSource?: PaymentSource;
+  paymentProvider?: PaymentProvider | null;
+  providerReference?: string | null;
   status: "COMPLETED" | "VOIDED";
   notes: string | null;
   customer: SaleCustomerSummary | null;
@@ -100,8 +112,18 @@ export interface CartItem {
 
 export const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string }> = [
   { value: "CASH", label: "Cash" },
-  { value: "MOBILE_MONEY", label: "Mobile Money" },
+  { value: "MOBILE_MONEY", label: "Manual Mobile Money" },
   { value: "BANK_TRANSFER", label: "Bank Transfer" },
+];
+
+export const CHECKOUT_PAYMENT_OPTIONS: Array<{
+  value: CheckoutPaymentMode;
+  label: string;
+}> = [
+  { value: "CASH", label: "Cash" },
+  { value: "MOBILE_MONEY", label: "Manual Mobile Money" },
+  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+  { value: "ORANGE_MONEY", label: "Orange Money" },
 ];
 
 export const SALE_PAYMENT_STATUSES: Array<{
@@ -119,6 +141,45 @@ export function formatPaymentMethod(method: PaymentMethod | null): string {
   }
 
   return PAYMENT_METHODS.find((entry) => entry.value === method)?.label ?? method;
+}
+
+export function formatPaymentProvider(
+  provider: PaymentProvider | null | undefined,
+): string {
+  if (!provider) {
+    return "—";
+  }
+
+  switch (provider) {
+    case "ORANGE_MONEY":
+      return "Orange Money";
+    case "MOCK":
+      return "Mock Provider";
+    case "AFRIMONEY":
+      return "AfriMoney";
+    default:
+      return provider;
+  }
+}
+
+export function maskProviderReference(
+  reference: string | null | undefined,
+): string | null {
+  if (!reference) {
+    return null;
+  }
+
+  if (reference.length <= 6) {
+    return "***";
+  }
+
+  return `${reference.slice(0, 3)}***${reference.slice(-3)}`;
+}
+
+export function formatCheckoutPaymentMode(mode: CheckoutPaymentMode): string {
+  return (
+    CHECKOUT_PAYMENT_OPTIONS.find((entry) => entry.value === mode)?.label ?? mode
+  );
 }
 
 export function formatSalePaymentStatus(status: SalePaymentStatus): string {
