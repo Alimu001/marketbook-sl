@@ -160,3 +160,16 @@ export {
   type WalletHistoryQuery,
   type ListBusinessWalletsQuery,
 } from "./wallet.js";
+
+export {
+  initiatePaymentSchema,
+  listPaymentsQuerySchema,
+  paymentsReportQuerySchema,
+  orangeMoneyCallbackSchema,
+  paymentProviders,
+  paymentStatuses,
+  type InitiatePaymentInput,
+  type ListPaymentsQuery,
+  type PaymentsReportQuery,
+  type OrangeMoneyCallbackInput,
+} from "./payment.js";

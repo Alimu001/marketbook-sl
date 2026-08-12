@@ -481,7 +481,7 @@ export async function initiatePayment(
       paymentTransactionId: created.id,
       expiresAt,
       items: input.sale.items,
-      customerId: input.sale.customerId,
+      ...(input.sale.customerId ? { customerId: input.sale.customerId } : {}),
       walletAmount: input.sale.walletAmount ?? "0",
     });
 
@@ -495,11 +495,17 @@ export async function initiatePayment(
       merchantReference: payment.merchantReference,
       amount: formatMoney(payment.amount),
       currency: payment.currency,
-      phoneNumber: input.phoneNumber,
+      ...(input.phoneNumber ? { phoneNumber: input.phoneNumber } : {}),
       description: `MarketBook ${payment.merchantReference}`,
-      returnUrl: paymentConfig.orangeMoney.returnUrl,
-      cancelUrl: paymentConfig.orangeMoney.cancelUrl,
-      callbackUrl: paymentConfig.orangeMoney.callbackUrl,
+      ...(paymentConfig.orangeMoney.returnUrl
+        ? { returnUrl: paymentConfig.orangeMoney.returnUrl }
+        : {}),
+      ...(paymentConfig.orangeMoney.cancelUrl
+        ? { cancelUrl: paymentConfig.orangeMoney.cancelUrl }
+        : {}),
+      ...(paymentConfig.orangeMoney.callbackUrl
+        ? { callbackUrl: paymentConfig.orangeMoney.callbackUrl }
+        : {}),
     });
 
     const updated = await prisma.paymentTransaction.update({
@@ -699,7 +705,9 @@ export async function handleOrangeMoneyCallback(
 
   if (
     adapter.verifyCallback &&
-    !adapter.verifyCallback(payload, { notifToken: payment.notifToken })
+    !adapter.verifyCallback(payload as import("./payment-provider.js").ProviderCallbackPayload, {
+      notifToken: payment.notifToken,
+    })
   ) {
     throw new AppError(401, "Invalid payment callback", "PAYMENT_CALLBACK_INVALID");
   }

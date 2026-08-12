@@ -209,25 +209,21 @@ export interface FinalizeSaleOptions {
   skipStockCheckAgainstReservations?: boolean;
 }
 
+type FinalizedSaleRecord = Prisma.SaleGetPayload<{
+  include: {
+    createdBy: { select: { id: true; name: true; email: true } };
+    customer: { select: { id: true; name: true } };
+    items: true;
+  };
+}>;
+
 export async function finalizeSaleCheckoutInTransaction(
   tx: TransactionClient,
   businessId: string,
   createdByUserId: string,
   input: CreateSaleInput,
   options: FinalizeSaleOptions = {},
-): Promise<
-  Awaited<
-    ReturnType<
-      typeof prisma.sale.create<{
-        include: {
-          createdBy: { select: { id: true; name: true; email: true } };
-          customer: { select: { id: true; name: true } };
-          items: true;
-        };
-      }>
-    >
-  >
-> {
+): Promise<FinalizedSaleRecord> {
   if (input.items.length === 0) {
     throw new AppError(400, "At least one item is required", "EMPTY_SALE");
   }

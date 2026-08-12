@@ -41,6 +41,40 @@ enum PaymentMethod {
   BANK_TRANSFER
 }
 
+enum PaymentProvider {
+  MOCK
+  ORANGE_MONEY
+  AFRIMONEY
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentSource {
+  MANUAL
+  PROVIDER
+}
+
+enum InventoryReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
+enum WalletReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
 enum SalePaymentStatus {
   PAID
   PARTIALLY_PAID
@@ -94,6 +128,7 @@ model User {
   purchaseVoidsCreated     PurchaseVoid[]       @relation("PurchaseVoidCreatedBy")
   supplierReturnsCreated   SupplierReturn[]     @relation("SupplierReturnCreatedBy")
   walletTransactionsCreated CustomerWalletTransaction[] @relation("WalletTransactionCreatedBy")
+  paymentTransactionsInitiated PaymentTransaction[] @relation("PaymentInitiatedBy")
 
   @@index([email])
 }
@@ -128,6 +163,9 @@ model Business {
   supplierReturnSequences SupplierReturnSequence[]
   customerWallets       CustomerWallet[]
   customerWalletTransactions CustomerWalletTransaction[]
+  paymentTransactions   PaymentTransaction[]
+  inventoryReservations InventoryReservation[]
+  walletReservations    WalletReservation[]
 
   @@index([name])
 }
@@ -185,6 +223,7 @@ model Product {
   purchaseItems        PurchaseItem[]
   saleRefundItems      SaleRefundItem[]
   supplierReturnItems  SupplierReturnItem[]
+  inventoryReservations InventoryReservation[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -251,6 +290,9 @@ model Sale {
   walletAmountUsed    Decimal            @default(0) @db.Decimal(19, 4)
   outstandingAmount   Decimal            @default(0) @db.Decimal(19, 4)
   paymentMethod       PaymentMethod?
+  paymentSource       PaymentSource      @default(MANUAL)
+  paymentProvider     PaymentProvider?
+  providerReference   String?
   paymentStatus       SalePaymentStatus  @default(PAID)
   status              SaleStatus         @default(COMPLETED)
   refundedAmount      Decimal            @default(0) @db.Decimal(19, 4)
@@ -265,10 +307,13 @@ model Sale {
   debt      CustomerDebt?
   refunds   SaleRefund[]
   void      SaleVoid?
+  paymentTransaction PaymentTransaction?
 
   @@index([businessId])
   @@index([businessId, createdAt])
   @@index([paymentMethod])
+  @@index([paymentSource])
+  @@index([paymentProvider])
   @@index([paymentStatus])
   @@index([createdByUserId])
   @@index([customerId])
@@ -404,6 +449,8 @@ model Customer {
   debtPayments DebtPayment[]
   wallet       CustomerWallet?
   walletTransactions CustomerWalletTransaction[]
+  paymentTransactions PaymentTransaction[]
+  walletReservations WalletReservation[]
 
   @@index([businessId])
   @@index([businessId, name])
@@ -765,4 +812,106 @@ model Expense {
   @@index([categoryId])
   @@index([paymentMethod])
   @@index([recordedByUserId])
+}
+
+model PaymentTransaction {
+  id                    String          @id @default(uuid()) @db.Uuid
+  businessId            String          @db.Uuid
+  saleId                String?         @unique @db.Uuid
+  customerId            String?         @db.Uuid
+  provider              PaymentProvider
+  amount                Decimal         @db.Decimal(19, 4)
+  walletAmount          Decimal         @default(0) @db.Decimal(19, 4)
+  totalAmount           Decimal         @db.Decimal(19, 4)
+  discountAmount        Decimal         @default(0) @db.Decimal(19, 4)
+  currency              String          @default("SLE")
+  status                PaymentStatus   @default(CREATED)
+  providerTransactionId String?
+  merchantReference     String          @unique
+  idempotencyKey        String
+  phoneNumber           String?
+  payToken              String?
+  notifToken            String?
+  paymentUrl            String?
+  checkoutPayload       Json
+  failureCode           String?
+  failureMessage        String?
+  initiatedByUserId     String          @db.Uuid
+  confirmedAt           DateTime?
+  failedAt              DateTime?
+  expiresAt             DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  business            Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale                Sale?                 @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  customer            Customer?             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  initiatedBy         User                  @relation("PaymentInitiatedBy", fields: [initiatedByUserId], references: [id], onDelete: Restrict)
+  attempts            PaymentAttempt[]
+  inventoryReservations InventoryReservation[]
+  walletReservations  WalletReservation[]
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId])
+  @@index([businessId, status])
+  @@index([businessId, provider])
+  @@index([businessId, createdAt])
+  @@index([status])
+  @@index([providerTransactionId])
+  @@index([initiatedByUserId])
+}
+
+model PaymentAttempt {
+  id                     String   @id @default(uuid()) @db.Uuid
+  paymentTransactionId   String   @db.Uuid
+  attemptNumber          Int
+  providerRequestReference String?
+  providerResponseStatus String?
+  createdAt              DateTime @default(now())
+
+  paymentTransaction PaymentTransaction @relation(fields: [paymentTransactionId], references: [id], onDelete: Cascade)
+
+  @@index([paymentTransactionId])
+}
+
+model InventoryReservation {
+  id                   String                     @id @default(uuid()) @db.Uuid
+  businessId           String                     @db.Uuid
+  productId            String                     @db.Uuid
+  paymentTransactionId String                     @db.Uuid
+  quantity             Decimal                    @db.Decimal(19, 4)
+  expiresAt            DateTime
+  status               InventoryReservationStatus @default(ACTIVE)
+  createdAt            DateTime                   @default(now())
+
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product            Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  paymentTransaction PaymentTransaction @relation(fields: [paymentTransactionId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([productId])
+  @@index([paymentTransactionId])
+  @@index([businessId, productId, status])
+  @@index([expiresAt])
+}
+
+model WalletReservation {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  businessId           String                  @db.Uuid
+  customerId           String                  @db.Uuid
+  paymentTransactionId String                  @db.Uuid
+  amount               Decimal                 @db.Decimal(19, 4)
+  expiresAt            DateTime
+  status               WalletReservationStatus @default(ACTIVE)
+  createdAt            DateTime                @default(now())
+
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer           Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  paymentTransaction PaymentTransaction @relation(fields: [paymentTransactionId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([paymentTransactionId])
+  @@index([businessId, customerId, status])
+  @@index([expiresAt])
 }

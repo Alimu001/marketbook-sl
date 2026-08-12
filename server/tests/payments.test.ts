@@ -265,7 +265,7 @@ describe("Payment Gateway", () => {
     });
 
     it("6. allows admin to initiate payment", async () => {
-      const { owner, businessId, productId } = await setupPaymentContext("pay-admin");
+      const { businessId, productId } = await setupPaymentContext("pay-admin");
       const admin = await createMemberUser(app, "pay-admin-user");
       await addMemberDirect(businessId, admin, "admin");
       const response = await initiateMockPayment(admin.accessToken, businessId, productId);
@@ -273,7 +273,7 @@ describe("Payment Gateway", () => {
     });
 
     it("7. allows staff to initiate payment", async () => {
-      const { owner, businessId, productId } = await setupPaymentContext("pay-staff");
+      const { businessId, productId } = await setupPaymentContext("pay-staff");
       const staff = await createMemberUser(app, "pay-staff-user");
       await addMemberDirect(businessId, staff, "staff");
       const response = await initiateMockPayment(staff.accessToken, businessId, productId);
@@ -281,7 +281,7 @@ describe("Payment Gateway", () => {
     });
 
     it("8. allows cashier to initiate payment", async () => {
-      const { owner, businessId, productId } = await setupPaymentContext("pay-cashier");
+      const { businessId, productId } = await setupPaymentContext("pay-cashier");
       const cashier = await createMemberUser(app, "pay-cashier-user");
       await addMemberDirect(businessId, cashier, "cashier");
       const response = await initiateMockPayment(cashier.accessToken, businessId, productId);
@@ -1023,7 +1023,7 @@ describe("Payment Gateway", () => {
     });
 
     it("43. admin can reconcile pending payment", async () => {
-      const { owner, businessId, paymentId } = await createPendingPayment("pay-reconcile-admin");
+      const { businessId, paymentId } = await createPendingPayment("pay-reconcile-admin");
       const admin = await createMemberUser(app, "pay-reconcile-admin-user");
       await addMemberDirect(businessId, admin, "admin");
       const response = await request(app)

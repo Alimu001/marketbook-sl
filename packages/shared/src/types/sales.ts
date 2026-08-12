@@ -2,6 +2,10 @@ export type SaleStatus = "COMPLETED" | "VOIDED";
 
 export type PaymentMethod = "CASH" | "MOBILE_MONEY" | "BANK_TRANSFER";
 
+export type PaymentSource = "MANUAL" | "PROVIDER";
+
+export type PaymentProvider = "MOCK" | "ORANGE_MONEY" | "AFRIMONEY";
+
 export type SalePaymentStatus = "PAID" | "PARTIALLY_PAID" | "UNPAID";
 
 export interface SaleCustomerSummary {
@@ -25,6 +29,9 @@ export interface SaleListItem {
   refundedAmount: string;
   paymentStatus: SalePaymentStatus;
   paymentMethod: PaymentMethod | null;
+  paymentSource: PaymentSource;
+  paymentProvider: PaymentProvider | null;
+  providerReference: string | null;
   status: SaleStatus;
   customer: SaleCustomerSummary | null;
   createdBy: SaleUserSummary;
@@ -59,6 +66,9 @@ export interface SaleDetailResponse {
   remainingRefundableAmount: string;
   paymentStatus: SalePaymentStatus;
   paymentMethod: PaymentMethod | null;
+  paymentSource: PaymentSource;
+  paymentProvider: PaymentProvider | null;
+  providerReference: string | null;
   status: SaleStatus;
   notes: string | null;
   customer: SaleCustomerSummary | null;

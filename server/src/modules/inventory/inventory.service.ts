@@ -25,8 +25,47 @@ import {
 } from "../../lib/quantity.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
+import { expireStaleReservations } from "../payments/reservation.service.js";
 
 type TransactionClient = Prisma.TransactionClient;
+
+async function getReservedQuantitiesByProduct(
+  businessId: string,
+  productIds: string[],
+): Promise<Map<string, Prisma.Decimal>> {
+  if (productIds.length === 0) {
+    return new Map();
+  }
+
+  await expireStaleReservations(businessId);
+
+  const reservations = await prisma.inventoryReservation.groupBy({
+    by: ["productId"],
+    where: {
+      businessId,
+      productId: { in: productIds },
+      status: "ACTIVE",
+      expiresAt: { gt: new Date() },
+    },
+    _sum: { quantity: true },
+  });
+
+  return new Map(
+    reservations.map((entry) => [
+      entry.productId,
+      entry._sum.quantity ?? new Prisma.Decimal(0),
+    ]),
+  );
+}
+
+function availableQuantity(
+  balanceQuantity: Prisma.Decimal,
+  reserved: Prisma.Decimal | undefined,
+): Prisma.Decimal {
+  const reservedQuantity = reserved ?? new Prisma.Decimal(0);
+  const available = balanceQuantity.sub(reservedQuantity);
+  return available.isNegative() ? new Prisma.Decimal(0) : available;
+}
 
 export async function lockInventoryBalance(
   tx: TransactionClient,
@@ -240,26 +279,42 @@ export async function listInventory(
       openingStockRows.map((row) => row.productId),
     );
 
+    const reservedByProduct = await getReservedQuantitiesByProduct(
+      businessId,
+      balances.map((balance) => balance.productId),
+    );
+
     const filtered = balances.filter((balance) => {
-      const low = isLowStock(balance.quantity, balance.lowStockThreshold);
+      const available = availableQuantity(
+        balance.quantity,
+        reservedByProduct.get(balance.productId),
+      );
+      const low = isLowStock(available, balance.lowStockThreshold);
       return query.lowStock ? low : !low;
     });
 
     const pageItems = filtered.slice(skip, skip + query.limit);
 
     return {
-      items: pageItems.map((balance) => ({
-        productId: balance.productId,
-        productName: balance.product.name,
-        sku: balance.product.sku,
-        unit: balance.product.unit,
-        quantity: formatQuantity(balance.quantity),
-        lowStockThreshold: formatQuantity(balance.lowStockThreshold),
-        isLowStock: isLowStock(balance.quantity, balance.lowStockThreshold),
-        isActive: balance.product.isActive,
-        hasOpeningStock: openingStockProductIds.has(balance.productId),
-        updatedAt: balance.updatedAt.toISOString(),
-      })) satisfies InventoryListItem[],
+      items: pageItems.map((balance) => {
+        const available = availableQuantity(
+          balance.quantity,
+          reservedByProduct.get(balance.productId),
+        );
+
+        return {
+          productId: balance.productId,
+          productName: balance.product.name,
+          sku: balance.product.sku,
+          unit: balance.product.unit,
+          quantity: formatQuantity(available),
+          lowStockThreshold: formatQuantity(balance.lowStockThreshold),
+          isLowStock: isLowStock(available, balance.lowStockThreshold),
+          isActive: balance.product.isActive,
+          hasOpeningStock: openingStockProductIds.has(balance.productId),
+          updatedAt: balance.updatedAt.toISOString(),
+        };
+      }) satisfies InventoryListItem[],
       page: query.page,
       limit: query.limit,
       total: filtered.length,
@@ -292,19 +347,31 @@ export async function listInventory(
     openingStockRows.map((row) => row.productId),
   );
 
+  const reservedByProduct = await getReservedQuantitiesByProduct(
+    businessId,
+    balances.map((balance) => balance.productId),
+  );
+
   return {
-    items: balances.map((balance) => ({
-      productId: balance.productId,
-      productName: balance.product.name,
-      sku: balance.product.sku,
-      unit: balance.product.unit,
-      quantity: formatQuantity(balance.quantity),
-      lowStockThreshold: formatQuantity(balance.lowStockThreshold),
-      isLowStock: isLowStock(balance.quantity, balance.lowStockThreshold),
-      isActive: balance.product.isActive,
-      hasOpeningStock: openingStockProductIds.has(balance.productId),
-      updatedAt: balance.updatedAt.toISOString(),
-    })) satisfies InventoryListItem[],
+    items: balances.map((balance) => {
+      const available = availableQuantity(
+        balance.quantity,
+        reservedByProduct.get(balance.productId),
+      );
+
+      return {
+        productId: balance.productId,
+        productName: balance.product.name,
+        sku: balance.product.sku,
+        unit: balance.product.unit,
+        quantity: formatQuantity(available),
+        lowStockThreshold: formatQuantity(balance.lowStockThreshold),
+        isLowStock: isLowStock(available, balance.lowStockThreshold),
+        isActive: balance.product.isActive,
+        hasOpeningStock: openingStockProductIds.has(balance.productId),
+        updatedAt: balance.updatedAt.toISOString(),
+      };
+    }) satisfies InventoryListItem[],
     page: query.page,
     limit: query.limit,
     total,

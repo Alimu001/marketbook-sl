@@ -216,7 +216,7 @@ export class OrangeMoneyProvider implements PaymentProviderAdapter {
     return {
       providerTransactionId: orderId,
       payToken: body.pay_token,
-      notifToken: body.notif_token,
+      ...(body.notif_token ? { notifToken: body.notif_token } : {}),
       paymentUrl: body.payment_url,
       providerStatus: "INITIATED",
       normalizedStatus: "PENDING",

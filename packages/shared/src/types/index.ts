@@ -28,6 +28,8 @@ export type {
 export type {
   CreateSaleResponse,
   PaymentMethod,
+  PaymentProvider,
+  PaymentSource,
   SaleCustomerSummary,
   SaleDetailResponse,
   SaleItemResponse,
@@ -36,6 +38,17 @@ export type {
   SaleStatus,
   SaleUserSummary,
 } from "./sales.js";
+
+export type {
+  InitiatePaymentResponse,
+  PaymentDetailResponse,
+  PaymentListItem,
+  PaymentProvider as GatewayPaymentProvider,
+  PaymentProvidersResponse,
+  PaymentStatus,
+  PaymentsListResponse,
+  PaymentsReportResponse,
+} from "./payment.js";
 
 export type {
   BusinessDebtListItem,

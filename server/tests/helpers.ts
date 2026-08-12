@@ -157,6 +157,26 @@ export async function resetBizTestData(): Promise<void> {
       where: { businessId: { in: testBusinessIds } },
     });
 
+    await prisma.paymentAttempt.deleteMany({
+      where: {
+        paymentTransaction: {
+          businessId: { in: testBusinessIds },
+        },
+      },
+    });
+
+    await prisma.inventoryReservation.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.walletReservation.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
+    await prisma.paymentTransaction.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
     await prisma.saleItem.deleteMany({
       where: {
         sale: {
@@ -419,6 +439,22 @@ export function walletPath(businessId: string, customerId: string, suffix = "") 
 
 export function businessWalletsPath(businessId: string, suffix = "") {
   return `/api/v1/businesses/${businessId}/wallets${suffix}`;
+}
+
+export function paymentsPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/payments${suffix}`;
+}
+
+export function paymentProvidersPath(businessId: string) {
+  return `/api/v1/businesses/${businessId}/payments/providers`;
+}
+
+export function paymentsReportPath(businessId: string, suffix = "") {
+  return `/api/v1/businesses/${businessId}/reports/payments${suffix}`;
+}
+
+export function orangeMoneyCallbackPath() {
+  return `/api/v1/payments/providers/orange-money/callback`;
 }
 
 export function productInventoryPath(
