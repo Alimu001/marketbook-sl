@@ -1,0 +1,227 @@
+import { env } from "@/config/env";
+
+export type PaymentMethod = "CASH" | "MOBILE_MONEY" | "BANK_TRANSFER";
+
+export type ProviderCheckoutMode = "ORANGE_MONEY" | "MOCK";
+
+export type CheckoutPaymentMode = PaymentMethod | ProviderCheckoutMode;
+
+export type PaymentSource = "MANUAL" | "PROVIDER";
+
+export type PaymentProvider = "MOCK" | "ORANGE_MONEY" | "AFRIMONEY";
+
+export type SalePaymentStatus = "PAID" | "PARTIALLY_PAID" | "UNPAID";
+
+export interface SaleUserSummary {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
+export interface SaleCustomerSummary {
+  id: string;
+  name: string;
+}
+
+export interface SaleListItem {
+  id: string;
+  receiptNumber: string;
+  totalAmount: string;
+  amountPaid: string;
+  walletAmountUsed: string;
+  outstandingAmount: string;
+  refundedAmount: string;
+  paymentStatus: SalePaymentStatus;
+  paymentMethod: PaymentMethod | null;
+  paymentSource?: PaymentSource;
+  paymentProvider?: PaymentProvider | null;
+  providerReference?: string | null;
+  status: "COMPLETED" | "VOIDED";
+  customer: SaleCustomerSummary | null;
+  createdBy: SaleUserSummary;
+  itemCount: number;
+  createdAt: string;
+}
+
+export interface SaleItem {
+  id: string;
+  productId: string;
+  productNameSnapshot: string;
+  skuSnapshot: string | null;
+  unitSnapshot: string;
+  quantity: string;
+  unitPrice: string;
+  costPriceSnapshot: string;
+  lineSubtotal: string;
+  createdAt: string;
+}
+
+export interface SaleDetail {
+  id: string;
+  businessId: string;
+  receiptNumber: string;
+  subtotal: string;
+  discountAmount: string;
+  totalAmount: string;
+  amountPaid: string;
+  walletAmountUsed: string;
+  outstandingAmount: string;
+  refundedAmount: string;
+  remainingRefundableAmount: string;
+  paymentStatus: SalePaymentStatus;
+  paymentMethod: PaymentMethod | null;
+  paymentSource?: PaymentSource;
+  paymentProvider?: PaymentProvider | null;
+  providerReference?: string | null;
+  status: "COMPLETED" | "VOIDED";
+  notes: string | null;
+  customer: SaleCustomerSummary | null;
+  createdBy: SaleUserSummary;
+  items: SaleItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSalePayload {
+  items: Array<{
+    productId: string;
+    quantity: string;
+  }>;
+  discountAmount?: string;
+  customerId?: string;
+  walletAmount?: string;
+  amountPaid?: string;
+  paymentMethod?: PaymentMethod;
+  notes?: string;
+}
+
+export interface ListSalesParams {
+  page?: number;
+  limit?: number;
+  paymentMethod?: PaymentMethod;
+  paymentStatus?: SalePaymentStatus;
+  from?: string;
+  to?: string;
+}
+
+export interface CartItem {
+  productId: string;
+  name: string;
+  sku: string | null;
+  unit: string;
+  unitPrice: string;
+  quantity: string;
+  availableStock: string;
+}
+
+export const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string }> = [
+  { value: "CASH", label: "Cash" },
+  { value: "MOBILE_MONEY", label: "Manual Mobile Money" },
+  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+];
+
+export const CHECKOUT_PAYMENT_OPTIONS: Array<{
+  value: CheckoutPaymentMode;
+  label: string;
+}> = [
+  { value: "CASH", label: "Cash" },
+  { value: "MOBILE_MONEY", label: "Manual Mobile Money" },
+  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+  { value: "ORANGE_MONEY", label: "Orange Money" },
+  { value: "MOCK", label: "Test Mobile Money" },
+];
+
+export const SALE_PAYMENT_STATUSES: Array<{
+  value: SalePaymentStatus;
+  label: string;
+}> = [
+  { value: "PAID", label: "Paid" },
+  { value: "PARTIALLY_PAID", label: "Partially Paid" },
+  { value: "UNPAID", label: "Unpaid" },
+];
+
+export function isDevelopmentApp(): boolean {
+  return env.appEnv === "development";
+}
+
+export function isProviderCheckoutMode(
+  mode: CheckoutPaymentMode,
+): mode is ProviderCheckoutMode {
+  return mode === "ORANGE_MONEY" || mode === "MOCK";
+}
+
+export function isVerifiedProviderPayment(
+  provider: PaymentProvider | null | undefined,
+): boolean {
+  return provider === "ORANGE_MONEY";
+}
+
+export function formatPaymentMethod(method: PaymentMethod | null): string {
+  if (!method) {
+    return "—";
+  }
+
+  return PAYMENT_METHODS.find((entry) => entry.value === method)?.label ?? method;
+}
+
+export function formatPaymentProvider(
+  provider: PaymentProvider | null | undefined,
+): string {
+  if (!provider) {
+    return "—";
+  }
+
+  switch (provider) {
+    case "ORANGE_MONEY":
+      return "Orange Money";
+    case "MOCK":
+      return "Test Mobile Money";
+    case "AFRIMONEY":
+      return "AfriMoney";
+    default:
+      return provider;
+  }
+}
+
+export function maskProviderReference(
+  reference: string | null | undefined,
+): string | null {
+  if (!reference) {
+    return null;
+  }
+
+  if (reference.length <= 6) {
+    return "***";
+  }
+
+  return `${reference.slice(0, 3)}***${reference.slice(-3)}`;
+}
+
+export function formatCheckoutPaymentMode(mode: CheckoutPaymentMode): string {
+  return (
+    CHECKOUT_PAYMENT_OPTIONS.find((entry) => entry.value === mode)?.label ?? mode
+  );
+}
+
+export function formatSalePaymentStatus(status: SalePaymentStatus): string {
+  return (
+    SALE_PAYMENT_STATUSES.find((entry) => entry.value === status)?.label ??
+    status
+  );
+}
+
+export function formatSaleDateTime(isoDate: string): string {
+  const date = new Date(isoDate);
+
+  if (Number.isNaN(date.getTime())) {
+    return isoDate;
+  }
+
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
