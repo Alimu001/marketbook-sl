@@ -1,6 +1,10 @@
+import { env } from "@/config/env";
+
 export type PaymentMethod = "CASH" | "MOBILE_MONEY" | "BANK_TRANSFER";
 
-export type CheckoutPaymentMode = PaymentMethod | "ORANGE_MONEY";
+export type ProviderCheckoutMode = "ORANGE_MONEY" | "MOCK";
+
+export type CheckoutPaymentMode = PaymentMethod | ProviderCheckoutMode;
 
 export type PaymentSource = "MANUAL" | "PROVIDER";
 
@@ -124,6 +128,7 @@ export const CHECKOUT_PAYMENT_OPTIONS: Array<{
   { value: "MOBILE_MONEY", label: "Manual Mobile Money" },
   { value: "BANK_TRANSFER", label: "Bank Transfer" },
   { value: "ORANGE_MONEY", label: "Orange Money" },
+  { value: "MOCK", label: "Test Mobile Money" },
 ];
 
 export const SALE_PAYMENT_STATUSES: Array<{
@@ -134,6 +139,22 @@ export const SALE_PAYMENT_STATUSES: Array<{
   { value: "PARTIALLY_PAID", label: "Partially Paid" },
   { value: "UNPAID", label: "Unpaid" },
 ];
+
+export function isDevelopmentApp(): boolean {
+  return env.appEnv === "development";
+}
+
+export function isProviderCheckoutMode(
+  mode: CheckoutPaymentMode,
+): mode is ProviderCheckoutMode {
+  return mode === "ORANGE_MONEY" || mode === "MOCK";
+}
+
+export function isVerifiedProviderPayment(
+  provider: PaymentProvider | null | undefined,
+): boolean {
+  return provider === "ORANGE_MONEY";
+}
 
 export function formatPaymentMethod(method: PaymentMethod | null): string {
   if (!method) {
@@ -154,7 +175,7 @@ export function formatPaymentProvider(
     case "ORANGE_MONEY":
       return "Orange Money";
     case "MOCK":
-      return "Mock Provider";
+      return "Test Mobile Money";
     case "AFRIMONEY":
       return "AfriMoney";
     default:

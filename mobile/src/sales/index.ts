@@ -18,6 +18,7 @@ export type {
   PaymentMethod,
   PaymentProvider,
   PaymentSource,
+  ProviderCheckoutMode,
   SaleCustomerSummary,
   SaleDetail,
   SaleItem,
@@ -33,5 +34,8 @@ export {
   formatPaymentProvider,
   formatSaleDateTime,
   formatSalePaymentStatus,
+  isDevelopmentApp,
+  isProviderCheckoutMode,
+  isVerifiedProviderPayment,
   maskProviderReference,
 } from "./types";

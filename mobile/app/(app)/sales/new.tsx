@@ -38,6 +38,8 @@ import { customerSelectHref, saleDetailHref } from "@/navigation/hrefs";
 import {
   CHECKOUT_PAYMENT_OPTIONS,
   compareMoney,
+  isDevelopmentApp,
+  isProviderCheckoutMode,
   isValidMoneyInput,
   multiplyMoney,
   subtractMoney,
@@ -45,6 +47,7 @@ import {
   useSaleCart,
   type CheckoutPaymentMode,
   type PaymentMethod,
+  type ProviderCheckoutMode,
 } from "@/sales";
 
 const PAGE_SIZE = 20;
@@ -91,7 +94,7 @@ export default function NewSaleScreen() {
   const [walletAmount, setWalletAmount] = useState("");
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMode>("CASH");
-  const [orangeMoneyPhone, setOrangeMoneyPhone] = useState("");
+  const [providerPhone, setProviderPhone] = useState("");
   const [configuredProviders, setConfiguredProviders] = useState<
     Set<"MOCK" | "ORANGE_MONEY">
   >(new Set());
@@ -100,12 +103,19 @@ export default function NewSaleScreen() {
 
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const businessId = currentBusiness?.id;
-  const isOrangeMoneyCheckout = paymentMethod === "ORANGE_MONEY";
+  const isProviderCheckout = isProviderCheckoutMode(paymentMethod);
+  const providerCheckoutMode: ProviderCheckoutMode | null = isProviderCheckout
+    ? paymentMethod
+    : null;
 
   const availablePaymentOptions = useMemo(() => {
     return CHECKOUT_PAYMENT_OPTIONS.filter((option) => {
       if (option.value === "ORANGE_MONEY") {
         return configuredProviders.has("ORANGE_MONEY");
+      }
+
+      if (option.value === "MOCK") {
+        return isDevelopmentApp() && configuredProviders.has("MOCK");
       }
 
       return true;
@@ -183,9 +193,13 @@ export default function NewSaleScreen() {
   }, [loadProviders]);
 
   useEffect(() => {
+    if (paymentMethod === "ORANGE_MONEY" && !configuredProviders.has("ORANGE_MONEY")) {
+      setPaymentMethod("CASH");
+    }
+
     if (
-      paymentMethod === "ORANGE_MONEY" &&
-      !configuredProviders.has("ORANGE_MONEY")
+      paymentMethod === "MOCK" &&
+      (!isDevelopmentApp() || !configuredProviders.has("MOCK"))
     ) {
       setPaymentMethod("CASH");
     }
@@ -256,12 +270,12 @@ export default function NewSaleScreen() {
   const isCreditSale = balanceDue !== null && compareMoney(balanceDue, "0") === 1;
   const requiresPaymentMethod =
     effectiveAmountPaid !== null && compareMoney(effectiveAmountPaid, "0") === 1;
-  const manualPaymentMethod = isOrangeMoneyCheckout
+  const manualPaymentMethod = isProviderCheckout
     ? null
     : (paymentMethod as PaymentMethod);
 
   useEffect(() => {
-    if (isOrangeMoneyCheckout && total) {
+    if (isProviderCheckout && total) {
       if (
         effectiveWalletAmount &&
         compareMoney(effectiveWalletAmount, "0") === 1
@@ -273,7 +287,7 @@ export default function NewSaleScreen() {
       setAmountPaid(total);
       setAmountPaidTouched(false);
     }
-  }, [isOrangeMoneyCheckout, total, effectiveWalletAmount]);
+  }, [isProviderCheckout, total, effectiveWalletAmount]);
 
   useEffect(() => {
     if (total && !amountPaidTouched) {
@@ -403,17 +417,15 @@ export default function NewSaleScreen() {
       return;
     }
 
-    if (isOrangeMoneyCheckout) {
-      const phone = orangeMoneyPhone.trim();
+    if (isProviderCheckout) {
+      const phone = providerPhone.trim();
       if (phone.length < 7) {
-        setCheckoutError("Enter a valid Orange Money phone number.");
+        setCheckoutError("Enter a valid mobile money phone number.");
         return;
       }
 
       if (isCreditSale) {
-        setCheckoutError(
-          "Orange Money requires the full balance to be paid now.",
-        );
+        setCheckoutError("Provider checkout requires the full balance to be paid now.");
         return;
       }
     }
@@ -432,10 +444,10 @@ export default function NewSaleScreen() {
     setIsCheckingOut(true);
 
     try {
-      if (isOrangeMoneyCheckout) {
+      if (isProviderCheckout && providerCheckoutMode) {
         const result = await initiatePayment(accessToken, businessId, {
-          provider: "ORANGE_MONEY",
-          phoneNumber: orangeMoneyPhone.trim(),
+          provider: providerCheckoutMode,
+          phoneNumber: providerPhone.trim(),
           idempotencyKey: createIdempotencyKey(),
           sale: {
             items: cartItems.map((item) => ({
@@ -778,12 +790,12 @@ export default function NewSaleScreen() {
                 </Pressable>
               ))}
             </View>
-            {isOrangeMoneyCheckout ? (
+            {isProviderCheckout ? (
               <View style={styles.discountSection}>
-                <Text style={styles.summaryLabel}>Orange Money Phone</Text>
+                <Text style={styles.summaryLabel}>Mobile Money Phone</Text>
                 <TextInput
-                  value={orangeMoneyPhone}
-                  onChangeText={setOrangeMoneyPhone}
+                  value={providerPhone}
+                  onChangeText={setProviderPhone}
                   keyboardType="phone-pad"
                   placeholder="Enter customer phone number"
                   style={styles.discountInput}
@@ -797,9 +809,11 @@ export default function NewSaleScreen() {
           label={
             isCheckingOut
               ? "Processing..."
-              : isOrangeMoneyCheckout
-                ? "Pay with Orange Money"
-                : "Complete Sale"
+              : providerCheckoutMode === "MOCK"
+                ? "Pay with Test Mobile Money"
+                : providerCheckoutMode === "ORANGE_MONEY"
+                  ? "Pay with Orange Money"
+                  : "Complete Sale"
           }
           disabled={isCheckingOut || cartItems.length === 0}
           onPress={() => void handleCheckout()}

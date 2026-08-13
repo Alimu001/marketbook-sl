@@ -143,10 +143,15 @@ export default function SalePaymentScreen() {
     payment.status === "CANCELLED";
   const isPending = isPollingStatus(payment.status);
 
+  const providerLabel = formatPaymentProvider(payment.provider);
+  const isMockPayment = payment.provider === "MOCK";
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Payment Status</Text>
+        <Text style={styles.title}>
+          {isMockPayment ? "Test Mobile Money Payment" : `${providerLabel} Payment`}
+        </Text>
 
         {errorMessage ? <FormMessage type="error" message={errorMessage} /> : null}
 
@@ -154,7 +159,7 @@ export default function SalePaymentScreen() {
           <View style={styles.pendingBanner}>
             <ActivityIndicator color="#0F766E" />
             <Text style={styles.pendingText}>
-              Waiting for {formatPaymentProvider(payment.provider)} confirmation…
+              Waiting for {providerLabel} confirmation…
             </Text>
           </View>
         ) : null}
@@ -174,9 +179,7 @@ export default function SalePaymentScreen() {
         <View style={styles.card}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Provider</Text>
-            <Text style={styles.summaryValue}>
-              {formatPaymentProvider(payment.provider)}
-            </Text>
+            <Text style={styles.summaryValue}>{providerLabel}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Amount</Text>

@@ -32,6 +32,7 @@ import {
   formatSaleDateTime,
   formatSalePaymentStatus,
   compareMoney,
+  isVerifiedProviderPayment,
   maskProviderReference,
   type SaleDetail,
 } from "@/sales";
@@ -190,7 +191,8 @@ export default function SaleDetailScreen() {
         <Text style={styles.metaLine}>
           Status: {formatSalePaymentStatus(sale.paymentStatus)}
         </Text>
-        {sale.paymentSource === "PROVIDER" ? (
+        {sale.paymentSource === "PROVIDER" &&
+        isVerifiedProviderPayment(sale.paymentProvider) ? (
           <View style={styles.verifiedBadge}>
             <Text style={styles.verifiedBadgeText}>Verified</Text>
           </View>
@@ -202,7 +204,7 @@ export default function SaleDetailScreen() {
             : formatPaymentMethod(sale.paymentMethod)}
         </Text>
         {sale.paymentSource === "PROVIDER" &&
-        sale.paymentProvider === "ORANGE_MONEY" &&
+        isVerifiedProviderPayment(sale.paymentProvider) &&
         sale.providerReference ? (
           <Text style={styles.metaLine}>
             Reference: {maskProviderReference(sale.providerReference)}
