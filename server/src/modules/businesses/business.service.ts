@@ -13,6 +13,7 @@ import type {
 import type { Business, BusinessMember } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
+import { DEFAULT_EXPENSE_CATEGORIES } from "../expenses/defaultCategories.js";
 
 function toBusinessDetails(business: Business): BusinessDetails {
   return {
@@ -60,6 +61,14 @@ export async function createBusiness(
         businessId: business.id,
         role: "owner",
       },
+    });
+
+    await tx.expenseCategory.createMany({
+      data: DEFAULT_EXPENSE_CATEGORIES.map((category) => ({
+        businessId: business.id,
+        name: category.name,
+        description: category.description,
+      })),
     });
 
     return { business, membership };

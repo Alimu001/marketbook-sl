@@ -14,6 +14,99 @@ enum BusinessRole {
   cashier
 }
 
+enum InventoryTransactionType {
+  OPENING_STOCK
+  STOCK_IN
+  STOCK_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  DAMAGE
+  RETURN_IN
+  SALE
+  PURCHASE
+  SALE_REFUND
+  SALE_VOID
+  PURCHASE_VOID
+  SUPPLIER_RETURN
+}
+
+enum SaleStatus {
+  COMPLETED
+  VOIDED
+}
+
+enum PaymentMethod {
+  CASH
+  MOBILE_MONEY
+  BANK_TRANSFER
+}
+
+enum PaymentProvider {
+  MOCK
+  ORANGE_MONEY
+  AFRIMONEY
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentSource {
+  MANUAL
+  PROVIDER
+}
+
+enum InventoryReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
+enum WalletReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
+enum SalePaymentStatus {
+  PAID
+  PARTIALLY_PAID
+  UNPAID
+}
+
+enum DebtStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  VOIDED
+}
+
+enum CustomerWalletTransactionType {
+  REFUND_CREDIT
+  SALE_PAYMENT
+  MANUAL_CREDIT
+  MANUAL_DEBIT
+}
+
+enum RefundDestination {
+  CASH
+  MOBILE_MONEY
+  BANK_TRANSFER
+  WALLET
+}
+
+enum PurchaseStatus {
+  COMPLETED
+  VOIDED
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
@@ -24,6 +117,18 @@ model User {
 
   businessMembers BusinessMember[]
   refreshTokens   RefreshToken[]
+  inventoryTransactions InventoryTransaction[] @relation("InventoryPerformedBy")
+  salesCreated          Sale[]                 @relation("SaleCreatedBy")
+  debtPaymentsRecorded  DebtPayment[]          @relation("DebtPaymentRecordedBy")
+  purchasesCreated      Purchase[]             @relation("PurchaseCreatedBy")
+  supplierPaymentsRecorded SupplierPayment[]   @relation("SupplierPaymentRecordedBy")
+  expensesRecorded         Expense[]            @relation("ExpenseRecordedBy")
+  saleRefundsCreated       SaleRefund[]         @relation("SaleRefundCreatedBy")
+  saleVoidsCreated         SaleVoid[]           @relation("SaleVoidCreatedBy")
+  purchaseVoidsCreated     PurchaseVoid[]       @relation("PurchaseVoidCreatedBy")
+  supplierReturnsCreated   SupplierReturn[]     @relation("SupplierReturnCreatedBy")
+  walletTransactionsCreated CustomerWalletTransaction[] @relation("WalletTransactionCreatedBy")
+  paymentTransactionsInitiated PaymentTransaction[] @relation("PaymentInitiatedBy")
 
   @@index([email])
 }
@@ -36,6 +141,31 @@ model Business {
 
   members  BusinessMember[]
   products Product[]
+  inventoryBalances     InventoryBalance[]
+  inventoryTransactions InventoryTransaction[]
+  sales                 Sale[]
+  saleReceiptSequences  SaleReceiptSequence[]
+  customers             Customer[]
+  customerDebts         CustomerDebt[]
+  debtPayments          DebtPayment[]
+  suppliers             Supplier[]
+  purchases             Purchase[]
+  purchaseNumberSequences PurchaseNumberSequence[]
+  supplierPayables      SupplierPayable[]
+  supplierPayments      SupplierPayment[]
+  expenseCategories     ExpenseCategory[]
+  expenses              Expense[]
+  saleRefunds           SaleRefund[]
+  saleRefundSequences   SaleRefundSequence[]
+  saleVoids             SaleVoid[]
+  purchaseVoids         PurchaseVoid[]
+  supplierReturns       SupplierReturn[]
+  supplierReturnSequences SupplierReturnSequence[]
+  customerWallets       CustomerWallet[]
+  customerWalletTransactions CustomerWalletTransaction[]
+  paymentTransactions   PaymentTransaction[]
+  inventoryReservations InventoryReservation[]
+  walletReservations    WalletReservation[]
 
   @@index([name])
 }
@@ -87,10 +217,701 @@ model Product {
   updatedAt    DateTime @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  inventoryBalance     InventoryBalance?
+  inventoryTransactions InventoryTransaction[]
+  saleItems            SaleItem[]
+  purchaseItems        PurchaseItem[]
+  saleRefundItems      SaleRefundItem[]
+  supplierReturnItems  SupplierReturnItem[]
+  inventoryReservations InventoryReservation[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
   @@index([businessId])
   @@index([businessId, name])
   @@index([businessId, isActive])
+}
+
+model InventoryBalance {
+  id                String   @id @default(uuid()) @db.Uuid
+  businessId        String   @db.Uuid
+  productId         String   @unique @db.Uuid
+  quantity          Decimal  @default(0) @db.Decimal(19, 4)
+  lowStockThreshold Decimal  @default(0) @db.Decimal(19, 4)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, productId])
+  @@index([businessId])
+  @@index([productId])
+  @@index([businessId, productId])
+}
+
+model InventoryTransaction {
+  id                String                   @id @default(uuid()) @db.Uuid
+  businessId        String                   @db.Uuid
+  productId         String                   @db.Uuid
+  performedByUserId String                   @db.Uuid
+  type              InventoryTransactionType
+  quantityChange    Decimal                  @db.Decimal(19, 4)
+  quantityBefore    Decimal                  @db.Decimal(19, 4)
+  quantityAfter     Decimal                  @db.Decimal(19, 4)
+  reason            String?
+  referenceType     String?
+  referenceId       String?                  @db.Uuid
+  notes             String?
+  createdAt         DateTime                 @default(now())
+
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  performedBy User     @relation("InventoryPerformedBy", fields: [performedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId])
+  @@index([productId])
+  @@index([createdAt])
+  @@index([businessId, productId])
+  @@index([type])
+}
+
+model Sale {
+  id                  String             @id @default(uuid()) @db.Uuid
+  businessId          String             @db.Uuid
+  createdByUserId     String             @db.Uuid
+  customerId          String?            @db.Uuid
+  customerNameSnapshot String?
+  receiptNumber       String             @unique
+  subtotal            Decimal            @db.Decimal(19, 4)
+  discountAmount      Decimal            @default(0) @db.Decimal(19, 4)
+  totalAmount         Decimal            @db.Decimal(19, 4)
+  amountPaid          Decimal            @default(0) @db.Decimal(19, 4)
+  walletAmountUsed    Decimal            @default(0) @db.Decimal(19, 4)
+  outstandingAmount   Decimal            @default(0) @db.Decimal(19, 4)
+  paymentMethod       PaymentMethod?
+  paymentSource       PaymentSource      @default(MANUAL)
+  paymentProvider     PaymentProvider?
+  providerReference   String?
+  paymentStatus       SalePaymentStatus  @default(PAID)
+  status              SaleStatus         @default(COMPLETED)
+  refundedAmount      Decimal            @default(0) @db.Decimal(19, 4)
+  notes               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  business  Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdBy User          @relation("SaleCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  customer  Customer?     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  items     SaleItem[]
+  debt      CustomerDebt?
+  refunds   SaleRefund[]
+  void      SaleVoid?
+  paymentTransaction PaymentTransaction?
+
+  @@index([businessId])
+  @@index([businessId, createdAt])
+  @@index([paymentMethod])
+  @@index([paymentSource])
+  @@index([paymentProvider])
+  @@index([paymentStatus])
+  @@index([createdByUserId])
+  @@index([customerId])
+}
+
+model SaleItem {
+  id                  String   @id @default(uuid()) @db.Uuid
+  saleId              String   @db.Uuid
+  productId           String   @db.Uuid
+  productNameSnapshot String
+  skuSnapshot         String?
+  unitSnapshot        String
+  quantity            Decimal  @db.Decimal(19, 4)
+  unitPrice           Decimal  @db.Decimal(19, 4)
+  costPriceSnapshot   Decimal  @db.Decimal(19, 4)
+  lineSubtotal        Decimal  @db.Decimal(19, 4)
+  createdAt           DateTime @default(now())
+
+  sale              Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product           Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  saleRefundItems   SaleRefundItem[]
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model SaleRefund {
+  id                  String         @id @default(uuid()) @db.Uuid
+  businessId          String         @db.Uuid
+  saleId              String         @db.Uuid
+  refundNumber        String         @unique
+  refundAmount        Decimal        @db.Decimal(19, 4)
+  receivableReduction Decimal        @default(0) @db.Decimal(19, 4)
+  cashReturnAmount    Decimal        @default(0) @db.Decimal(19, 4)
+  walletCreditAmount  Decimal        @default(0) @db.Decimal(19, 4)
+  refundDestination   RefundDestination?
+  refundPaymentMethod PaymentMethod?
+  reason              String
+  notes               String?
+  createdByUserId     String         @db.Uuid
+  createdAt           DateTime       @default(now())
+
+  business  Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale      Sale             @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  createdBy User             @relation("SaleRefundCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  items     SaleRefundItem[]
+
+  @@index([businessId])
+  @@index([saleId])
+  @@index([businessId, createdAt])
+  @@index([createdByUserId])
+}
+
+model SaleRefundItem {
+  id                  String   @id @default(uuid()) @db.Uuid
+  refundId            String   @db.Uuid
+  saleItemId          String   @db.Uuid
+  productId           String   @db.Uuid
+  quantity            Decimal  @db.Decimal(19, 4)
+  unitPriceSnapshot   Decimal  @db.Decimal(19, 4)
+  costPriceSnapshot   Decimal  @db.Decimal(19, 4)
+  lineRefundAmount    Decimal  @db.Decimal(19, 4)
+  restock             Boolean  @default(true)
+  createdAt           DateTime @default(now())
+
+  refund   SaleRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+  saleItem SaleItem   @relation(fields: [saleItemId], references: [id], onDelete: Restrict)
+  product  Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([refundId])
+  @@index([saleItemId])
+  @@index([productId])
+}
+
+model SaleVoid {
+  id              String   @id @default(uuid()) @db.Uuid
+  businessId      String   @db.Uuid
+  saleId          String   @unique @db.Uuid
+  reason          String
+  notes           String?
+  createdByUserId String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  business  Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  createdBy User     @relation("SaleVoidCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId])
+  @@index([createdByUserId])
+}
+
+model SaleRefundSequence {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  dateKey    String
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, dateKey])
+  @@index([businessId])
+}
+
+model SaleReceiptSequence {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  dateKey    String
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, dateKey])
+  @@index([businessId])
+}
+
+model Customer {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  name       String
+  phone      String?
+  email      String?
+  address    String?
+  notes      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sales        Sale[]
+  debts        CustomerDebt[]
+  debtPayments DebtPayment[]
+  wallet       CustomerWallet?
+  walletTransactions CustomerWalletTransaction[]
+  paymentTransactions PaymentTransaction[]
+  walletReservations WalletReservation[]
+
+  @@index([businessId])
+  @@index([businessId, name])
+  @@index([businessId, phone])
+  @@index([businessId, email])
+  @@index([businessId, isActive])
+}
+
+model CustomerDebt {
+  id                String     @id @default(uuid()) @db.Uuid
+  businessId        String     @db.Uuid
+  customerId        String     @db.Uuid
+  saleId            String     @unique @db.Uuid
+  originalAmount    Decimal    @db.Decimal(19, 4)
+  amountPaid        Decimal    @default(0) @db.Decimal(19, 4)
+  outstandingAmount Decimal    @db.Decimal(19, 4)
+  status            DebtStatus @default(OPEN)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  sale     Sale          @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  payments DebtPayment[]
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([businessId, status])
+  @@index([createdAt])
+}
+
+model DebtPayment {
+  id               String        @id @default(uuid()) @db.Uuid
+  businessId       String        @db.Uuid
+  customerId       String        @db.Uuid
+  debtId           String        @db.Uuid
+  amount           Decimal       @db.Decimal(19, 4)
+  paymentMethod    PaymentMethod
+  recordedByUserId String        @db.Uuid
+  balanceBefore    Decimal       @db.Decimal(19, 4)
+  balanceAfter     Decimal       @db.Decimal(19, 4)
+  notes            String?
+  createdAt        DateTime      @default(now())
+
+  business   Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  debt       CustomerDebt @relation(fields: [debtId], references: [id], onDelete: Restrict)
+  recordedBy User         @relation("DebtPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([debtId])
+  @@index([createdAt])
+}
+
+model CustomerWallet {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  customerId String   @unique @db.Uuid
+  balance    Decimal  @default(0) @db.Decimal(19, 4)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business     Business                    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer     Customer                    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  transactions CustomerWalletTransaction[]
+
+  @@unique([businessId, customerId])
+  @@index([businessId])
+  @@index([customerId])
+  @@index([businessId, balance])
+}
+
+model CustomerWalletTransaction {
+  id              String                        @id @default(uuid()) @db.Uuid
+  businessId      String                        @db.Uuid
+  customerId      String                        @db.Uuid
+  walletId        String                        @db.Uuid
+  type            CustomerWalletTransactionType
+  amount          Decimal                       @db.Decimal(19, 4)
+  balanceBefore   Decimal                       @db.Decimal(19, 4)
+  balanceAfter    Decimal                       @db.Decimal(19, 4)
+  referenceType   String?
+  referenceId     String?                       @db.Uuid
+  reason          String?
+  notes           String?
+  createdByUserId String                        @db.Uuid
+  createdAt       DateTime                      @default(now())
+
+  business  Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  wallet    CustomerWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  createdBy User           @relation("WalletTransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([walletId])
+  @@index([businessId, createdAt])
+  @@index([type])
+}
+
+model Supplier {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  name       String
+  phone      String?
+  email      String?
+  address    String?
+  notes      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  purchases        Purchase[]
+  payables         SupplierPayable[]
+  supplierPayments SupplierPayment[]
+  supplierReturns  SupplierReturn[]
+
+  @@index([businessId])
+  @@index([businessId, name])
+  @@index([businessId, phone])
+  @@index([businessId, email])
+  @@index([businessId, isActive])
+}
+
+model Purchase {
+  id                  String            @id @default(uuid()) @db.Uuid
+  businessId          String            @db.Uuid
+  supplierId          String            @db.Uuid
+  createdByUserId     String            @db.Uuid
+  supplierNameSnapshot String
+  purchaseNumber      String            @unique
+  subtotal            Decimal           @db.Decimal(19, 4)
+  discountAmount      Decimal           @default(0) @db.Decimal(19, 4)
+  totalAmount         Decimal           @db.Decimal(19, 4)
+  amountPaid          Decimal           @default(0) @db.Decimal(19, 4)
+  outstandingAmount   Decimal           @default(0) @db.Decimal(19, 4)
+  paymentMethod       PaymentMethod?
+  paymentStatus       SalePaymentStatus @default(PAID)
+  status              PurchaseStatus    @default(COMPLETED)
+  returnedAmount      Decimal           @default(0) @db.Decimal(19, 4)
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  business  Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplier  Supplier         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy User             @relation("PurchaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  items     PurchaseItem[]
+  payable   SupplierPayable?
+  void      PurchaseVoid?
+  returns   SupplierReturn[]
+
+  @@index([businessId])
+  @@index([businessId, createdAt])
+  @@index([supplierId])
+  @@index([paymentStatus])
+  @@index([createdByUserId])
+}
+
+model PurchaseItem {
+  id                  String   @id @default(uuid()) @db.Uuid
+  purchaseId          String   @db.Uuid
+  productId           String   @db.Uuid
+  productNameSnapshot String
+  skuSnapshot         String?
+  unitSnapshot        String
+  quantity            Decimal  @db.Decimal(19, 4)
+  unitCost            Decimal  @db.Decimal(19, 4)
+  lineSubtotal        Decimal  @db.Decimal(19, 4)
+  createdAt           DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supplierReturnItems SupplierReturnItem[]
+
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+model SupplierReturn {
+  id                  String         @id @default(uuid()) @db.Uuid
+  businessId          String         @db.Uuid
+  purchaseId          String         @db.Uuid
+  supplierId          String         @db.Uuid
+  returnNumber        String         @unique
+  returnAmount        Decimal        @db.Decimal(19, 4)
+  payableReduction    Decimal        @default(0) @db.Decimal(19, 4)
+  cashRefundAmount    Decimal        @default(0) @db.Decimal(19, 4)
+  refundPaymentMethod PaymentMethod?
+  reason              String
+  notes               String?
+  createdByUserId     String         @db.Uuid
+  createdAt           DateTime       @default(now())
+
+  business  Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  purchase  Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  supplier  Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy User                 @relation("SupplierReturnCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  items     SupplierReturnItem[]
+
+  @@index([businessId])
+  @@index([purchaseId])
+  @@index([supplierId])
+  @@index([businessId, createdAt])
+  @@index([createdByUserId])
+}
+
+model SupplierReturnItem {
+  id                String   @id @default(uuid()) @db.Uuid
+  supplierReturnId  String   @db.Uuid
+  purchaseItemId    String   @db.Uuid
+  productId         String   @db.Uuid
+  quantity          Decimal  @db.Decimal(19, 4)
+  unitCostSnapshot  Decimal  @db.Decimal(19, 4)
+  lineReturnAmount  Decimal  @db.Decimal(19, 4)
+  createdAt         DateTime @default(now())
+
+  supplierReturn SupplierReturn @relation(fields: [supplierReturnId], references: [id], onDelete: Cascade)
+  purchaseItem   PurchaseItem   @relation(fields: [purchaseItemId], references: [id], onDelete: Restrict)
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([supplierReturnId])
+  @@index([purchaseItemId])
+  @@index([productId])
+}
+
+model SupplierReturnSequence {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  dateKey    String
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, dateKey])
+  @@index([businessId])
+}
+
+model PurchaseVoid {
+  id              String   @id @default(uuid()) @db.Uuid
+  businessId      String   @db.Uuid
+  purchaseId      String   @unique @db.Uuid
+  reason          String
+  notes           String?
+  createdByUserId String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  business  Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  purchase  Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  createdBy User     @relation("PurchaseVoidCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId])
+  @@index([createdByUserId])
+}
+
+model PurchaseNumberSequence {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  dateKey    String
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, dateKey])
+  @@index([businessId])
+}
+
+model SupplierPayable {
+  id                String     @id @default(uuid()) @db.Uuid
+  businessId        String     @db.Uuid
+  supplierId        String     @db.Uuid
+  purchaseId        String     @unique @db.Uuid
+  originalAmount    Decimal    @db.Decimal(19, 4)
+  amountPaid        Decimal    @default(0) @db.Decimal(19, 4)
+  outstandingAmount Decimal    @db.Decimal(19, 4)
+  status            DebtStatus @default(OPEN)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  business Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplier Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchase Purchase          @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  payments SupplierPayment[]
+
+  @@index([businessId])
+  @@index([supplierId])
+  @@index([businessId, status])
+  @@index([createdAt])
+}
+
+model SupplierPayment {
+  id               String        @id @default(uuid()) @db.Uuid
+  businessId       String        @db.Uuid
+  supplierId       String        @db.Uuid
+  payableId        String        @db.Uuid
+  amount           Decimal       @db.Decimal(19, 4)
+  paymentMethod    PaymentMethod
+  recordedByUserId String        @db.Uuid
+  balanceBefore    Decimal       @db.Decimal(19, 4)
+  balanceAfter     Decimal       @db.Decimal(19, 4)
+  notes            String?
+  createdAt        DateTime      @default(now())
+
+  business   Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplier   Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  payable    SupplierPayable @relation(fields: [payableId], references: [id], onDelete: Restrict)
+  recordedBy User            @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId])
+  @@index([supplierId])
+  @@index([payableId])
+  @@index([createdAt])
+}
+
+model ExpenseCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  businessId  String   @db.Uuid
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@index([businessId, isActive])
+}
+
+model Expense {
+  id               String        @id @default(uuid()) @db.Uuid
+  businessId       String        @db.Uuid
+  categoryId       String        @db.Uuid
+  recordedByUserId String        @db.Uuid
+  amount           Decimal       @db.Decimal(19, 4)
+  paymentMethod    PaymentMethod
+  expenseDate      DateTime      @db.Date
+  vendorOrPayee    String?
+  referenceNumber  String?
+  description      String
+  notes            String?
+  isArchived       Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  business   Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  recordedBy User            @relation("ExpenseRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId])
+  @@index([businessId, expenseDate])
+  @@index([businessId, isArchived])
+  @@index([categoryId])
+  @@index([paymentMethod])
+  @@index([recordedByUserId])
+}
+
+model PaymentTransaction {
+  id                    String          @id @default(uuid()) @db.Uuid
+  businessId            String          @db.Uuid
+  saleId                String?         @unique @db.Uuid
+  customerId            String?         @db.Uuid
+  provider              PaymentProvider
+  amount                Decimal         @db.Decimal(19, 4)
+  walletAmount          Decimal         @default(0) @db.Decimal(19, 4)
+  totalAmount           Decimal         @db.Decimal(19, 4)
+  discountAmount        Decimal         @default(0) @db.Decimal(19, 4)
+  currency              String          @default("SLE")
+  status                PaymentStatus   @default(CREATED)
+  providerTransactionId String?
+  merchantReference     String          @unique
+  idempotencyKey        String
+  phoneNumber           String?
+  payToken              String?
+  notifToken            String?
+  paymentUrl            String?
+  checkoutPayload       Json
+  failureCode           String?
+  failureMessage        String?
+  initiatedByUserId     String          @db.Uuid
+  confirmedAt           DateTime?
+  failedAt              DateTime?
+  expiresAt             DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  business            Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale                Sale?                 @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  customer            Customer?             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  initiatedBy         User                  @relation("PaymentInitiatedBy", fields: [initiatedByUserId], references: [id], onDelete: Restrict)
+  attempts            PaymentAttempt[]
+  inventoryReservations InventoryReservation[]
+  walletReservations  WalletReservation[]
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId])
+  @@index([businessId, status])
+  @@index([businessId, provider])
+  @@index([businessId, createdAt])
+  @@index([status])
+  @@index([providerTransactionId])
+  @@index([initiatedByUserId])
+}
+
+model PaymentAttempt {
+  id                     String   @id @default(uuid()) @db.Uuid
+  paymentTransactionId   String   @db.Uuid
+  attemptNumber          Int
+  providerRequestReference String?
+  providerResponseStatus String?
+  createdAt              DateTime @default(now())
+
+  paymentTransaction PaymentTransaction @relation(fields: [paymentTransactionId], references: [id], onDelete: Cascade)
+
+  @@index([paymentTransactionId])
+}
+
+model InventoryReservation {
+  id                   String                     @id @default(uuid()) @db.Uuid
+  businessId           String                     @db.Uuid
+  productId            String                     @db.Uuid
+  paymentTransactionId String                     @db.Uuid
+  quantity             Decimal                    @db.Decimal(19, 4)
+  expiresAt            DateTime
+  status               InventoryReservationStatus @default(ACTIVE)
+  createdAt            DateTime                   @default(now())
+
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product            Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  paymentTransaction PaymentTransaction @relation(fields: [paymentTransactionId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([productId])
+  @@index([paymentTransactionId])
+  @@index([businessId, productId, status])
+  @@index([expiresAt])
+}
+
+model WalletReservation {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  businessId           String                  @db.Uuid
+  customerId           String                  @db.Uuid
+  paymentTransactionId String                  @db.Uuid
+  amount               Decimal                 @db.Decimal(19, 4)
+  expiresAt            DateTime
+  status               WalletReservationStatus @default(ACTIVE)
+  createdAt            DateTime                @default(now())
+
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer           Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  paymentTransaction PaymentTransaction @relation(fields: [paymentTransactionId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([paymentTransactionId])
+  @@index([businessId, customerId, status])
+  @@index([expiresAt])
 }
