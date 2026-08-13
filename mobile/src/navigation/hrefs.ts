@@ -31,8 +31,14 @@ export const reportReceivablesHref = "/(app)/reports/receivables" as Href;
 export const reportWalletsHref = "/(app)/reports/wallets" as Href;
 export const reportPayablesHref = "/(app)/reports/payables" as Href;
 export const reportInventoryHref = "/(app)/reports/inventory" as Href;
+export const reportPaymentsHref = "/(app)/reports/payments" as Href;
+export const paymentsHref = "/(app)/payments" as Href;
 export const expenseCreateHref = "/(app)/expenses/create" as Href;
 export const expenseCategoriesHref = "/(app)/expenses/categories" as Href;
+
+export function paymentDetailHref(paymentId: string): Href {
+  return `/(app)/payments/${paymentId}` as Href;
+}
 
 export function saleDetailHref(saleId: string): Href {
   return `/(app)/sales/${saleId}` as Href;

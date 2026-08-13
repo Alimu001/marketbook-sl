@@ -165,6 +165,30 @@ export function getUserFacingErrorMessage(error: unknown): string {
         return "This purchase has already been partially returned and can no longer be fully voided.";
       case "INVALID_SUPPLIER_RETURN":
         return "Invalid supplier return request.";
+      case "PAYMENT_NOT_FOUND":
+        return "Payment not found.";
+      case "PAYMENT_PENDING":
+        return "Payment is still pending.";
+      case "PAYMENT_FAILED":
+        return "Payment was not completed.";
+      case "PAYMENT_EXPIRED":
+        return "This payment request expired.";
+      case "PAYMENT_PROVIDER_NOT_CONFIGURED":
+        return "This payment provider is not configured.";
+      case "PAYMENT_PROVIDER_UNAVAILABLE":
+        return "The payment provider is temporarily unavailable. Try again shortly.";
+      case "PAYMENT_VERIFICATION_FAILED":
+        return "Payment could not be verified with the provider.";
+      case "PAYMENT_IDEMPOTENCY_CONFLICT":
+        return "This payment request conflicts with an earlier attempt. Start a new checkout.";
+      case "PAYMENT_AMOUNT_INVALID":
+        return "The payment amount is invalid.";
+      case "PAYMENT_RESERVATION_EXPIRED":
+        return "The stock reservation for this payment has expired.";
+      case "INSUFFICIENT_AVAILABLE_STOCK":
+        return "Not enough stock is available for this payment.";
+      case "INSUFFICIENT_WALLET_BALANCE":
+        return "Insufficient store credit for this payment.";
       default:
         return error.message || "Something went wrong. Please try again.";
     }

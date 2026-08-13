@@ -31,6 +31,7 @@ import {
   expensesHref,
   inventoryHref,
   payablesHref,
+  paymentsHref,
   productsHref,
   purchasesHref,
   reportsHref,
@@ -50,6 +51,7 @@ const QUICK_ACTIONS = [
   { label: "Purchases", href: purchasesHref, enabled: true },
   { label: "Payables", href: payablesHref, enabled: true },
   { label: "Expenses", href: expensesHref, enabled: true },
+  { label: "Payments", href: paymentsHref, enabled: true },
 ] as const;
 
 function MetricCard({ label, value }: { label: string; value: string }) {

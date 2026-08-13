@@ -86,8 +86,22 @@ export interface InitiatePaymentPayload {
   };
 }
 
-export interface InitiatePaymentResponse {
-  payment: PaymentDetail;
+export interface PaymentsReportResponse {
+  period: { from: string | null; to: string | null };
+  totals: {
+    succeededAmount: string;
+    succeededCount: number;
+    pendingCount: number;
+    failedCount: number;
+    expiredCount: number;
+  };
+  byProvider: Array<{
+    provider: PaymentProvider;
+    succeededAmount: string;
+    succeededCount: number;
+    pendingCount: number;
+    failedCount: number;
+  }>;
 }
 
 export interface ListPaymentsParams {
@@ -156,8 +170,8 @@ export function initiatePayment(
   accessToken: string,
   businessId: string,
   payload: InitiatePaymentPayload,
-): Promise<InitiatePaymentResponse> {
-  return apiRequest<InitiatePaymentResponse>(paymentsPath(businessId), {
+): Promise<PaymentDetail> {
+  return apiRequest<PaymentDetail>(paymentsPath(businessId), {
     method: "POST",
     accessToken,
     body: payload,
@@ -182,6 +196,46 @@ export function listPayments(
 ): Promise<PaymentsListResponse> {
   return apiRequest<PaymentsListResponse>(
     `${paymentsPath(businessId)}${buildListQuery(params)}`,
+    {
+      method: "GET",
+      accessToken,
+    },
+  );
+}
+
+export function reconcilePayment(
+  accessToken: string,
+  businessId: string,
+  paymentId: string,
+): Promise<PaymentDetail> {
+  return apiRequest<PaymentDetail>(
+    paymentsPath(businessId, `/${paymentId}/reconcile`),
+    {
+      method: "POST",
+      accessToken,
+    },
+  );
+}
+
+function reportsPaymentsPath(businessId: string, query = ""): string {
+  return `${businessScopedPath(businessId)}/reports/payments${query}`;
+}
+
+export function getPaymentsReport(
+  accessToken: string,
+  businessId: string,
+  params: { from?: string; to?: string } = {},
+): Promise<PaymentsReportResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.from) {
+    searchParams.set("from", params.from);
+  }
+  if (params.to) {
+    searchParams.set("to", params.to);
+  }
+  const query = searchParams.toString();
+  return apiRequest<PaymentsReportResponse>(
+    reportsPaymentsPath(businessId, query ? `?${query}` : ""),
     {
       method: "GET",
       accessToken,

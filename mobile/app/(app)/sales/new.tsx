@@ -34,7 +34,7 @@ import {
 import { formatMoneyDisplay, formatProductPrice } from "@/products/money";
 import type { Product } from "@/products/types";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
-import { customerSelectHref, saleDetailHref } from "@/navigation/hrefs";
+import { customerSelectHref, saleDetailHref, salePaymentHref } from "@/navigation/hrefs";
 import {
   CHECKOUT_PAYMENT_OPTIONS,
   compareMoney,
@@ -465,10 +465,7 @@ export default function NewSaleScreen() {
 
         clearCart();
         clearSelectedCustomer();
-        router.replace({
-          pathname: "/(app)/sales/payment/[paymentId]",
-          params: { paymentId: result.payment.id },
-        });
+        router.replace(salePaymentHref(result.id));
         return;
       }
 

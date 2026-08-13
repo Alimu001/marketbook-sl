@@ -1163,4 +1163,186 @@ describe("Payment Gateway", () => {
       );
     });
   });
+
+  describe("Payment history API", () => {
+    it("51. paginates payment list", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "pay-page");
+      const productId = await createProductWithStock(owner.accessToken, businessId);
+
+      for (let index = 0; index < 3; index += 1) {
+        await initiateMockPayment(owner.accessToken, businessId, productId, {
+          phoneNumber: PHONE_PENDING,
+        });
+      }
+
+      const pageOne = await request(app)
+        .get(paymentsPath(businessId))
+        .set(authHeader(owner.accessToken))
+        .query({ page: 1, limit: 2 });
+
+      const pageTwo = await request(app)
+        .get(paymentsPath(businessId))
+        .set(authHeader(owner.accessToken))
+        .query({ page: 2, limit: 2 });
+
+      expect(pageOne.status).toBe(200);
+      expect(pageOne.body.data.total).toBe(3);
+      expect(pageOne.body.data.items).toHaveLength(2);
+      expect(pageTwo.status).toBe(200);
+      expect(pageTwo.body.data.items).toHaveLength(1);
+    });
+
+    it("52. filters payment list by SUCCEEDED status", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "pay-filter-success");
+      const productId = await createProductWithStock(owner.accessToken, businessId);
+
+      const pending = await initiateMockPayment(owner.accessToken, businessId, productId, {
+        phoneNumber: PHONE_PENDING,
+      });
+      const success = await initiateMockPayment(owner.accessToken, businessId, productId, {
+        phoneNumber: PHONE_SUCCESS,
+      });
+      await waitForPaymentSuccess(
+        owner.accessToken,
+        businessId,
+        success.body.data.id as string,
+      );
+
+      const response = await request(app)
+        .get(paymentsPath(businessId))
+        .set(authHeader(owner.accessToken))
+        .query({ status: "SUCCEEDED" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.total).toBe(1);
+      expect(response.body.data.items[0].id).toBe(success.body.data.id);
+      expect(response.body.data.items[0].id).not.toBe(pending.body.data.id);
+    });
+
+    it("53. filters payment list by FAILED status", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "pay-filter-failed");
+      const productId = await createProductWithStock(owner.accessToken, businessId);
+
+      const failed = await initiateMockPayment(owner.accessToken, businessId, productId, {
+        phoneNumber: PHONE_FAILED,
+      });
+      await waitForPaymentSuccess(
+        owner.accessToken,
+        businessId,
+        failed.body.data.id as string,
+      );
+
+      const response = await request(app)
+        .get(paymentsPath(businessId))
+        .set(authHeader(owner.accessToken))
+        .query({ status: "FAILED" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.total).toBe(1);
+      expect(response.body.data.items[0].status).toBe("FAILED");
+    });
+
+    it("54. filters payment list by MOCK provider", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "pay-filter-provider");
+      const productId = await createProductWithStock(owner.accessToken, businessId);
+
+      const payment = await initiateMockPayment(owner.accessToken, businessId, productId);
+
+      const response = await request(app)
+        .get(paymentsPath(businessId))
+        .set(authHeader(owner.accessToken))
+        .query({ provider: "MOCK" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.total).toBe(1);
+      expect(response.body.data.items[0].id).toBe(payment.body.data.id);
+      expect(response.body.data.items[0].provider).toBe("MOCK");
+    });
+
+    it("55. allows staff to list payment history", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "pay-staff-list");
+      const staff = await createMemberUser(app, "pay-staff-list-user");
+      await addMemberDirect(businessId, staff, "staff");
+      const productId = await createProductWithStock(owner.accessToken, businessId);
+      await initiateMockPayment(owner.accessToken, businessId, productId);
+
+      const response = await request(app)
+        .get(paymentsPath(businessId))
+        .set(authHeader(staff.accessToken));
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.total).toBe(1);
+    });
+
+    it("56. failed payment detail remains immutable after reconcile attempt", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "pay-failed-immutable");
+      const productId = await createProductWithStock(owner.accessToken, businessId);
+
+      const failed = await initiateMockPayment(owner.accessToken, businessId, productId, {
+        phoneNumber: PHONE_FAILED,
+      });
+      const paymentId = failed.body.data.id as string;
+      await waitForPaymentSuccess(owner.accessToken, businessId, paymentId);
+
+      const reconcile = await request(app)
+        .post(paymentsPath(businessId, `/${paymentId}/reconcile`))
+        .set(authHeader(owner.accessToken));
+
+      const detail = await request(app)
+        .get(paymentsPath(businessId, `/${paymentId}`))
+        .set(authHeader(owner.accessToken));
+
+      expect(reconcile.status).toBe(200);
+      expect(reconcile.body.data.status).toBe("FAILED");
+      expect(detail.body.data.status).toBe("FAILED");
+      expect(detail.body.data.sale).toBeNull();
+    });
+
+    it("57. returns payments report totals", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "pay-report");
+      const productId = await createProductWithStock(owner.accessToken, businessId);
+
+      const success = await initiateMockPayment(owner.accessToken, businessId, productId, {
+        phoneNumber: PHONE_SUCCESS,
+      });
+      await waitForPaymentSuccess(
+        owner.accessToken,
+        businessId,
+        success.body.data.id as string,
+      );
+      await initiateMockPayment(owner.accessToken, businessId, productId, {
+        phoneNumber: PHONE_PENDING,
+      });
+
+      const response = await request(app)
+        .get(`/api/v1/businesses/${businessId}/reports/payments`)
+        .set(authHeader(owner.accessToken));
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.totals.succeededCount).toBe(1);
+      expect(response.body.data.totals.pendingCount).toBeGreaterThanOrEqual(1);
+    });
+
+    it("58. cashier can view payment detail but not reconcile", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "pay-cashier-view");
+      const cashier = await createMemberUser(app, "pay-cashier-view-user");
+      await addMemberDirect(businessId, cashier, "cashier");
+      const productId = await createProductWithStock(owner.accessToken, businessId);
+
+      const initiate = await initiateMockPayment(owner.accessToken, businessId, productId, {
+        phoneNumber: PHONE_PENDING,
+      });
+      const paymentId = initiate.body.data.id as string;
+
+      const detail = await request(app)
+        .get(paymentsPath(businessId, `/${paymentId}`))
+        .set(authHeader(cashier.accessToken));
+      const reconcile = await request(app)
+        .post(paymentsPath(businessId, `/${paymentId}/reconcile`))
+        .set(authHeader(cashier.accessToken));
+
+      expect(detail.status).toBe(200);
+      expect(reconcile.status).toBe(403);
+    });
+  });
 });
