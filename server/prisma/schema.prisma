@@ -75,6 +75,12 @@ enum WalletReservationStatus {
   EXPIRED
 }
 
+enum ClientMutationEntityType {
+  CUSTOMER
+  SUPPLIER
+  EXPENSE
+}
+
 enum SalePaymentStatus {
   PAID
   PARTIALLY_PAID
@@ -129,6 +135,7 @@ model User {
   supplierReturnsCreated   SupplierReturn[]     @relation("SupplierReturnCreatedBy")
   walletTransactionsCreated CustomerWalletTransaction[] @relation("WalletTransactionCreatedBy")
   paymentTransactionsInitiated PaymentTransaction[] @relation("PaymentInitiatedBy")
+  clientMutations              ClientMutation[]
 
   @@index([email])
 }
@@ -166,6 +173,7 @@ model Business {
   paymentTransactions   PaymentTransaction[]
   inventoryReservations InventoryReservation[]
   walletReservations    WalletReservation[]
+  clientMutations       ClientMutation[]
 
   @@index([name])
 }
@@ -914,4 +922,23 @@ model WalletReservation {
   @@index([paymentTransactionId])
   @@index([businessId, customerId, status])
   @@index([expiresAt])
+}
+
+model ClientMutation {
+  id             String                   @id @default(uuid()) @db.Uuid
+  businessId     String                   @db.Uuid
+  userId         String                   @db.Uuid
+  mutationId     String
+  entityType     ClientMutationEntityType
+  payloadHash    String
+  resultEntityId String?                  @db.Uuid
+  createdAt      DateTime                 @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, mutationId])
+  @@index([businessId])
+  @@index([userId])
+  @@index([entityType])
 }

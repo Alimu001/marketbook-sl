@@ -37,6 +37,7 @@ import {
   reportsHref,
   salesHref,
   suppliersHref,
+  syncHref,
 } from "@/navigation/hrefs";
 import { formatMoneyDisplay } from "@/products/money";
 
@@ -52,6 +53,7 @@ const QUICK_ACTIONS = [
   { label: "Payables", href: payablesHref, enabled: true },
   { label: "Expenses", href: expensesHref, enabled: true },
   { label: "Payments", href: paymentsHref, enabled: true },
+  { label: "Sync", href: syncHref, enabled: true },
 ] as const;
 
 function MetricCard({ label, value }: { label: string; value: string }) {

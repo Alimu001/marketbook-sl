@@ -16,6 +16,7 @@ import {
   formatMoney,
   toMoneyDecimalFromString,
 } from "../../lib/money.js";
+import { executeIdempotentMutation } from "../../lib/clientMutation.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
 import { assertExpenseCategoryInBusiness } from "./expense-category.service.js";
@@ -122,38 +123,55 @@ export async function createExpense(
   businessId: string,
   recordedByUserId: string,
   input: CreateExpenseInput,
+  options: { mutationId?: string } = {},
 ): Promise<ExpenseDetail> {
-  await validateCategoryForExpense(businessId, input.categoryId);
+  return executeIdempotentMutation({
+    businessId,
+    userId: recordedByUserId,
+    mutationId: options.mutationId,
+    entityType: "EXPENSE",
+    payload: input,
+    execute: async () => {
+      await validateCategoryForExpense(businessId, input.categoryId);
 
-  const amount = toMoneyDecimalFromString(input.amount);
+      const amount = toMoneyDecimalFromString(input.amount);
 
-  if (amount.lte(0)) {
-    throw new AppError(
-      400,
-      "Amount must be greater than zero",
-      "INVALID_EXPENSE_AMOUNT",
-    );
-  }
+      if (amount.lte(0)) {
+        throw new AppError(
+          400,
+          "Amount must be greater than zero",
+          "INVALID_EXPENSE_AMOUNT",
+        );
+      }
 
-  const expenseDate = parseExpenseDateInput(input.expenseDate);
+      const expenseDate = parseExpenseDateInput(input.expenseDate);
 
-  const expense = await prisma.expense.create({
-    data: {
-      businessId,
-      categoryId: input.categoryId,
-      recordedByUserId,
-      amount,
-      paymentMethod: input.paymentMethod,
-      expenseDate,
-      vendorOrPayee: input.vendorOrPayee ?? null,
-      referenceNumber: input.referenceNumber ?? null,
-      description: input.description,
-      notes: input.notes ?? null,
+      const expense = await prisma.expense.create({
+        data: {
+          businessId,
+          categoryId: input.categoryId,
+          recordedByUserId,
+          amount,
+          paymentMethod: input.paymentMethod,
+          expenseDate,
+          vendorOrPayee: input.vendorOrPayee ?? null,
+          referenceNumber: input.referenceNumber ?? null,
+          description: input.description,
+          notes: input.notes ?? null,
+        },
+        include: expenseInclude,
+      });
+
+      const detail = toExpenseDetail(expense);
+
+      return {
+        entityId: expense.id,
+        result: detail,
+      };
     },
-    include: expenseInclude,
+    loadExisting: (expenseId) =>
+      getExpenseDetail(businessId, expenseId),
   });
-
-  return toExpenseDetail(expense);
 }
 
 export async function listExpenses(

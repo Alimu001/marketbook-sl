@@ -90,11 +90,15 @@ export function createCustomer(
   accessToken: string,
   businessId: string,
   input: CreateCustomerPayload,
+  idempotencyKey?: string,
 ): Promise<CustomerDetail> {
   return apiRequest<CustomerDetail>(customersPath(businessId), {
     method: "POST",
     accessToken,
     body: input,
+    ...(idempotencyKey
+      ? { headers: { "Idempotency-Key": idempotencyKey } }
+      : {}),
   });
 }
 

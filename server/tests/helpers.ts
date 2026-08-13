@@ -177,6 +177,10 @@ export async function resetBizTestData(): Promise<void> {
       where: { businessId: { in: testBusinessIds } },
     });
 
+    await prisma.clientMutation.deleteMany({
+      where: { businessId: { in: testBusinessIds } },
+    });
+
     await prisma.saleItem.deleteMany({
       where: {
         sale: {
@@ -245,12 +249,28 @@ export async function resetBizTestData(): Promise<void> {
   }
 
   if (testUserIds.length > 0) {
+    await prisma.clientMutation.deleteMany({
+      where: { userId: { in: testUserIds } },
+    });
+
     await prisma.customerWalletTransaction.deleteMany({
       where: { createdByUserId: { in: testUserIds } },
     });
 
     await prisma.inventoryTransaction.deleteMany({
       where: { performedByUserId: { in: testUserIds } },
+    });
+
+    await prisma.saleItem.deleteMany({
+      where: {
+        sale: {
+          createdByUserId: { in: testUserIds },
+        },
+      },
+    });
+
+    await prisma.sale.deleteMany({
+      where: { createdByUserId: { in: testUserIds } },
     });
   }
 

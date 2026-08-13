@@ -168,11 +168,15 @@ export function createExpense(
   accessToken: string,
   businessId: string,
   input: CreateExpensePayload,
+  idempotencyKey?: string,
 ): Promise<ExpenseDetail> {
   return apiRequest<ExpenseDetail>(expensesPath(businessId), {
     method: "POST",
     accessToken,
     body: input,
+    ...(idempotencyKey
+      ? { headers: { "Idempotency-Key": idempotencyKey } }
+      : {}),
   });
 }
 

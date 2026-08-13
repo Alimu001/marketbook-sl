@@ -4,6 +4,7 @@ import type {
   ListCustomerDebtsQuery,
 } from "@marketbook/shared/validation";
 import { AppError } from "../../middleware/errorHandler.js";
+import { getIdempotencyKeyFromRequest } from "../../lib/clientMutation.js";
 import { getRouteParam } from "../../lib/routeParams.js";
 import * as customerService from "./customer.service.js";
 import * as debtService from "../debts/debt.service.js";
@@ -28,6 +29,16 @@ function getCustomerId(req: Request): string {
   return customerId;
 }
 
+function getUserId(req: Request): string {
+  const userId = req.auth?.userId;
+
+  if (!userId) {
+    throw new AppError(401, "Authentication required", "UNAUTHORIZED");
+  }
+
+  return userId;
+}
+
 export async function createCustomer(
   req: Request,
   res: Response,
@@ -36,7 +47,9 @@ export async function createCustomer(
   try {
     const customer = await customerService.createCustomer(
       getBusinessId(req),
+      getUserId(req),
       req.body,
+      { mutationId: getIdempotencyKeyFromRequest(req.headers) },
     );
     res.status(201).json({ data: customer });
   } catch (error) {

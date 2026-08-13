@@ -1,7 +1,8 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { createCustomer } from "@/api/customers";
+import { createCustomer } from "@/offline/repositories/customers.repository";
+import { useOffline } from "@/offline";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -27,6 +28,7 @@ export default function CreateCustomerScreen() {
   const router = useRouter();
   const { accessToken, logout } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -63,6 +65,11 @@ export default function CreateCustomerScreen() {
       return;
     }
 
+    const scope = getScope();
+    if (!scope) {
+      return;
+    }
+
     setFieldErrors({});
     setFormError(undefined);
 
@@ -89,7 +96,7 @@ export default function CreateCustomerScreen() {
     setIsSubmitting(true);
 
     try {
-      await createCustomer(accessToken, currentBusiness.id, parsed.data);
+      await createCustomer(scope, networkStatus, parsed.data);
       router.replace({
         pathname: customersHref,
         params: { created: "1" },

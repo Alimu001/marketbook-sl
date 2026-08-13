@@ -1,7 +1,8 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { createExpense, listExpenseCategories } from "@/api/expenses";
+import { createExpense, listExpenseCategories as listExpenseCategoriesRepo } from "@/offline/repositories/expenses.repository";
+import { useOffline } from "@/offline";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -52,6 +53,7 @@ export default function CreateExpenseScreen() {
   const router = useRouter();
   const { accessToken, logout } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [categories, setCategories] = useState<ExpenseCategorySummary[]>([]);
   const [categoryId, setCategoryId] = useState<string | undefined>();
@@ -71,15 +73,14 @@ export default function CreateExpenseScreen() {
   const canCreate = role ? canCreateExpense(role) : false;
 
   useEffect(() => {
-    if (!accessToken || !currentBusiness) {
+    const scope = getScope();
+    if (!accessToken || !currentBusiness || !scope) {
       return;
     }
 
     setIsLoadingCategories(true);
 
-    void listExpenseCategories(accessToken, currentBusiness.id, {
-      isActive: true,
-    })
+    void listExpenseCategoriesRepo(scope, networkStatus)
       .then((response) => {
         setCategories(response);
         if (response.length > 0) {
@@ -92,7 +93,7 @@ export default function CreateExpenseScreen() {
       .finally(() => {
         setIsLoadingCategories(false);
       });
-  }, [accessToken, currentBusiness]);
+  }, [accessToken, currentBusiness, getScope, networkStatus]);
 
   if (!canCreate) {
     return (
@@ -113,7 +114,8 @@ export default function CreateExpenseScreen() {
   }
 
   const handleSubmit = async () => {
-    if (isSubmitting || !accessToken || !currentBusiness || !categoryId) {
+    const scope = getScope();
+    if (isSubmitting || !accessToken || !currentBusiness || !categoryId || !scope) {
       return;
     }
 
@@ -153,7 +155,7 @@ export default function CreateExpenseScreen() {
     setIsSubmitting(true);
 
     try {
-      await createExpense(accessToken, currentBusiness.id, parsed.data);
+      await createExpense(scope, networkStatus, parsed.data);
       router.replace({
         pathname: expensesHref,
         params: { created: "1" },

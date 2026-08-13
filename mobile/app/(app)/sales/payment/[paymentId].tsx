@@ -12,6 +12,7 @@ import { getPayment, type PaymentDetail } from "@/api/payments";
 import { ApiError, getUserFacingErrorMessage } from "@/api/errors";
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/business";
+import { useOffline } from "@/offline";
 import { FormButton, FormMessage } from "@/components/AuthScreen";
 import { saleNewHref } from "@/navigation/hrefs";
 import { formatMoneyDisplay } from "@/products/money";
@@ -49,6 +50,7 @@ export default function SalePaymentScreen() {
   const { paymentId } = useLocalSearchParams<{ paymentId: string }>();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { isOnline } = useOffline();
 
   const [payment, setPayment] = useState<PaymentDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -155,7 +157,15 @@ export default function SalePaymentScreen() {
 
         {errorMessage ? <FormMessage type="error" message={errorMessage} /> : null}
 
-        {isPending ? (
+        {isPending && !isOnline ? (
+          <View style={styles.pendingBanner}>
+            <Text style={styles.pendingText}>
+              Connection lost. Payment status will refresh when you&apos;re back online.
+            </Text>
+          </View>
+        ) : null}
+
+        {isPending && isOnline ? (
           <View style={styles.pendingBanner}>
             <ActivityIndicator color="#0F766E" />
             <Text style={styles.pendingText}>

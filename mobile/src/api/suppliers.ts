@@ -90,11 +90,15 @@ export function createSupplier(
   accessToken: string,
   businessId: string,
   input: CreateSupplierPayload,
+  idempotencyKey?: string,
 ): Promise<SupplierDetail> {
   return apiRequest<SupplierDetail>(suppliersPath(businessId), {
     method: "POST",
     accessToken,
     body: input,
+    ...(idempotencyKey
+      ? { headers: { "Idempotency-Key": idempotencyKey } }
+      : {}),
   });
 }
 

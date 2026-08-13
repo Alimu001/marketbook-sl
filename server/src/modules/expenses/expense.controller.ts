@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ListExpensesQuery } from "@marketbook/shared/validation";
 import { AppError } from "../../middleware/errorHandler.js";
+import { getIdempotencyKeyFromRequest } from "../../lib/clientMutation.js";
 import { getRouteParam } from "../../lib/routeParams.js";
 import * as expenseService from "./expense.service.js";
 
@@ -44,6 +45,7 @@ export async function createExpense(
       getBusinessId(req),
       getRecordedByUserId(req),
       req.body,
+      { mutationId: getIdempotencyKeyFromRequest(req.headers) },
     );
     res.status(201).json({ data: expense });
   } catch (error) {

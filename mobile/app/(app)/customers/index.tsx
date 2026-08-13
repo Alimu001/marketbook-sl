@@ -11,7 +11,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { listCustomers } from "@/api/customers";
+import { customersRepository, useOffline } from "@/offline";
+import { OfflineDataHint, PendingSyncBadge } from "@/components/OfflineIndicators";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -54,6 +55,7 @@ export default function CustomerListScreen() {
   const { created } = useLocalSearchParams<{ created?: string }>();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus, isOfflineData } = useOffline();
 
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
   const [page, setPage] = useState(1);
@@ -84,6 +86,11 @@ export default function CustomerListScreen() {
         return;
       }
 
+      const scope = getScope();
+      if (!scope) {
+        return;
+      }
+
       if (options.refreshing) {
         setIsRefreshing(true);
       } else if (options.replace) {
@@ -95,7 +102,10 @@ export default function CustomerListScreen() {
       setErrorMessage(undefined);
 
       try {
-        const response = await listCustomers(accessToken, businessId, {
+        const response = await customersRepository.listCustomers(
+          scope,
+          networkStatus,
+          {
           page: options.pageToLoad,
           limit: PAGE_SIZE,
           search: debouncedSearch || undefined,
@@ -122,7 +132,7 @@ export default function CustomerListScreen() {
         setIsLoadingMore(false);
       }
     },
-    [accessToken, businessId, debouncedSearch, filter, router],
+    [accessToken, businessId, debouncedSearch, filter, router, getScope, networkStatus],
   );
 
   useEffect(() => {
@@ -186,6 +196,7 @@ export default function CustomerListScreen() {
           </Pressable>
           <Text style={styles.title}>Customers</Text>
           <Text style={styles.subtitle}>{currentBusiness?.name}</Text>
+          <OfflineDataHint visible={isOfflineData} />
         </View>
 
         <TextInput
@@ -253,6 +264,7 @@ export default function CustomerListScreen() {
               <Text style={styles.balanceText}>
                 Balance: {formatMoneyDisplay(item.outstandingBalance)}
               </Text>
+              <PendingSyncBadge entityId={item.id} />
             </Pressable>
           )}
           contentContainerStyle={styles.listContent}

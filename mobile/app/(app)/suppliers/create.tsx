@@ -1,7 +1,8 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { createSupplier } from "@/api/suppliers";
+import { createSupplier } from "@/offline/repositories/suppliers.repository";
+import { useOffline } from "@/offline";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -27,6 +28,7 @@ export default function CreateSupplierScreen() {
   const router = useRouter();
   const { accessToken, logout } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -59,7 +61,8 @@ export default function CreateSupplierScreen() {
   }
 
   const handleSubmit = async () => {
-    if (isSubmitting || !accessToken || !currentBusiness) {
+    const scope = getScope();
+    if (isSubmitting || !accessToken || !currentBusiness || !scope) {
       return;
     }
 
@@ -89,7 +92,7 @@ export default function CreateSupplierScreen() {
     setIsSubmitting(true);
 
     try {
-      await createSupplier(accessToken, currentBusiness.id, parsed.data);
+      await createSupplier(scope, networkStatus, parsed.data);
       router.replace({
         pathname: suppliersHref,
         params: { created: "1" },

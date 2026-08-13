@@ -11,6 +11,7 @@ import type {
 import type { Prisma, Supplier } from "../../../generated/prisma/client.js";
 import { Prisma as PrismaNamespace } from "../../../generated/prisma/client.js";
 import { formatMoney } from "../../lib/money.js";
+import { executeIdempotentMutation } from "../../lib/clientMutation.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
 
@@ -128,20 +129,42 @@ export async function assertSupplierInBusiness(
 
 export async function createSupplier(
   businessId: string,
+  userId: string,
   input: CreateSupplierInput,
+  options: { mutationId?: string } = {},
 ): Promise<SupplierDetail> {
-  const supplier = await prisma.supplier.create({
-    data: {
-      businessId,
-      name: input.name,
-      phone: input.phone ?? null,
-      email: input.email ?? null,
-      address: input.address ?? null,
-      notes: input.notes ?? null,
-    },
-  });
+  return executeIdempotentMutation({
+    businessId,
+    userId,
+    mutationId: options.mutationId,
+    entityType: "SUPPLIER",
+    payload: input,
+    execute: async () => {
+      const supplier = await prisma.supplier.create({
+        data: {
+          businessId,
+          name: input.name,
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          address: input.address ?? null,
+          notes: input.notes ?? null,
+        },
+      });
 
-  return toSupplierDetail(supplier, new PrismaNamespace.Decimal(0), 0);
+      const detail = toSupplierDetail(
+        supplier,
+        new PrismaNamespace.Decimal(0),
+        0,
+      );
+
+      return {
+        entityId: supplier.id,
+        result: detail,
+      };
+    },
+    loadExisting: (supplierId) =>
+      getSupplierDetail(businessId, supplierId),
+  });
 }
 
 export async function listSuppliers(

@@ -4,6 +4,7 @@ import type {
   ListSupplierPayablesQuery,
 } from "@marketbook/shared/validation";
 import { AppError } from "../../middleware/errorHandler.js";
+import { getIdempotencyKeyFromRequest } from "../../lib/clientMutation.js";
 import { getRouteParam } from "../../lib/routeParams.js";
 import * as supplierService from "./supplier.service.js";
 import * as payableService from "../payables/payable.service.js";
@@ -28,6 +29,16 @@ function getSupplierId(req: Request): string {
   return supplierId;
 }
 
+function getUserId(req: Request): string {
+  const userId = req.auth?.userId;
+
+  if (!userId) {
+    throw new AppError(401, "Authentication required", "UNAUTHORIZED");
+  }
+
+  return userId;
+}
+
 export async function createSupplier(
   req: Request,
   res: Response,
@@ -36,7 +47,9 @@ export async function createSupplier(
   try {
     const supplier = await supplierService.createSupplier(
       getBusinessId(req),
+      getUserId(req),
       req.body,
+      { mutationId: getIdempotencyKeyFromRequest(req.headers) },
     );
     res.status(201).json({ data: supplier });
   } catch (error) {

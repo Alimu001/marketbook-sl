@@ -14,8 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { createSale } from "@/api/sales";
 import { initiatePayment, listPaymentProviders } from "@/api/payments";
 import { getCustomerWallet } from "@/api/wallet";
-import { listInventory } from "@/api/inventory";
-import { listProducts } from "@/api/products";
+import { readRepository, useOffline } from "@/offline";
+import { OfflineDataHint } from "@/components/OfflineIndicators";
 import {
   ApiError,
   getInsufficientStockMessage,
@@ -74,6 +74,7 @@ export default function NewSaleScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus, isOnline, isOfflineData } = useOffline();
   const {
     items: cartItems,
     addItem,
@@ -110,6 +111,10 @@ export default function NewSaleScreen() {
 
   const availablePaymentOptions = useMemo(() => {
     return CHECKOUT_PAYMENT_OPTIONS.filter((option) => {
+      if (!isOnline && (option.value === "MOCK" || option.value === "ORANGE_MONEY")) {
+        return false;
+      }
+
       if (option.value === "ORANGE_MONEY") {
         return configuredProviders.has("ORANGE_MONEY");
       }
@@ -120,7 +125,7 @@ export default function NewSaleScreen() {
 
       return true;
     });
-  }, [configuredProviders]);
+  }, [configuredProviders, isOnline]);
 
   const loadProviders = useCallback(async () => {
     if (!accessToken || !businessId) {
@@ -138,7 +143,8 @@ export default function NewSaleScreen() {
   }, [accessToken, businessId]);
 
   const loadProducts = useCallback(async () => {
-    if (!accessToken || !businessId) {
+    const scope = getScope();
+    if (!accessToken || !businessId || !scope) {
       return;
     }
 
@@ -147,13 +153,12 @@ export default function NewSaleScreen() {
 
     try {
       const [inventoryResponse, productResponse] = await Promise.all([
-        listInventory(accessToken, businessId, {
+        readRepository.listInventory(scope, networkStatus, {
           page: 1,
           limit: PAGE_SIZE,
           search: debouncedSearch || undefined,
-          isActive: true,
         }),
-        listProducts(accessToken, businessId, {
+        readRepository.listProducts(scope, networkStatus, {
           page: 1,
           limit: PAGE_SIZE,
           search: debouncedSearch || undefined,
@@ -182,7 +187,7 @@ export default function NewSaleScreen() {
     } finally {
       setIsLoadingProducts(false);
     }
-  }, [accessToken, businessId, debouncedSearch]);
+  }, [accessToken, businessId, debouncedSearch, getScope, networkStatus]);
 
   useEffect(() => {
     void loadProducts();
@@ -364,6 +369,13 @@ export default function NewSaleScreen() {
       return;
     }
 
+    if (!isOnline) {
+      setCheckoutError(
+        "Sales checkout requires internet connection in this version.",
+      );
+      return;
+    }
+
     if (cartItems.length === 0) {
       setCheckoutError("Add at least one item to the cart.");
       return;
@@ -528,6 +540,17 @@ export default function NewSaleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>New Sale</Text>
+        <OfflineDataHint visible={isOfflineData} />
+        {isOfflineData ? (
+          <Text style={styles.offlineStockHint}>
+            Cached stock — may have changed
+          </Text>
+        ) : null}
+        {!isOnline && isProviderCheckout ? (
+          <Text style={styles.offlineStockHint}>
+            Internet connection required for digital payments.
+          </Text>
+        ) : null}
 
         <TextInput
           value={search}
@@ -682,7 +705,7 @@ export default function NewSaleScreen() {
           ) : null}
         </View>
 
-        {selectedCustomer && walletBalance ? (
+        {selectedCustomer && walletBalance && isOnline ? (
           <View style={styles.walletSection}>
             <Text style={styles.sectionTitle}>Store Credit</Text>
             <Text style={styles.walletBalanceLabel}>
@@ -804,7 +827,9 @@ export default function NewSaleScreen() {
 
         <FormButton
           label={
-            isCheckingOut
+            !isOnline
+              ? "Checkout requires internet"
+              : isCheckingOut
               ? "Processing..."
               : providerCheckoutMode === "MOCK"
                 ? "Pay with Test Mobile Money"
@@ -812,7 +837,7 @@ export default function NewSaleScreen() {
                   ? "Pay with Orange Money"
                   : "Complete Sale"
           }
-          disabled={isCheckingOut || cartItems.length === 0}
+          disabled={isCheckingOut || cartItems.length === 0 || !isOnline}
           onPress={() => void handleCheckout()}
         />
       </ScrollView>
@@ -835,6 +860,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0F172A",
     marginTop: 16,
+  },
+  offlineStockHint: {
+    color: "#92400E",
+    fontSize: 14,
+    fontWeight: "600",
   },
   searchInput: {
     backgroundColor: "#FFFFFF",

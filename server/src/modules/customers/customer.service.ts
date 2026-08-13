@@ -11,6 +11,7 @@ import type {
 import type { Customer, Prisma } from "../../../generated/prisma/client.js";
 import { Prisma as PrismaNamespace } from "../../../generated/prisma/client.js";
 import { formatMoney } from "../../lib/money.js";
+import { executeIdempotentMutation } from "../../lib/clientMutation.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
 import { getWalletBalanceMap } from "../wallet/wallet.service.js";
@@ -133,25 +134,43 @@ export async function assertCustomerInBusiness(
 
 export async function createCustomer(
   businessId: string,
+  userId: string,
   input: CreateCustomerInput,
+  options: { mutationId?: string } = {},
 ): Promise<CustomerDetail> {
-  const customer = await prisma.customer.create({
-    data: {
-      businessId,
-      name: input.name,
-      phone: input.phone ?? null,
-      email: input.email ?? null,
-      address: input.address ?? null,
-      notes: input.notes ?? null,
-    },
-  });
+  return executeIdempotentMutation({
+    businessId,
+    userId,
+    mutationId: options.mutationId,
+    entityType: "CUSTOMER",
+    payload: input,
+    execute: async () => {
+      const customer = await prisma.customer.create({
+        data: {
+          businessId,
+          name: input.name,
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          address: input.address ?? null,
+          notes: input.notes ?? null,
+        },
+      });
 
-  return toCustomerDetail(
-    customer,
-    new PrismaNamespace.Decimal(0),
-    new PrismaNamespace.Decimal(0),
-    0,
-  );
+      const detail = toCustomerDetail(
+        customer,
+        new PrismaNamespace.Decimal(0),
+        new PrismaNamespace.Decimal(0),
+        0,
+      );
+
+      return {
+        entityId: customer.id,
+        result: detail,
+      };
+    },
+    loadExisting: (customerId) =>
+      getCustomerDetail(businessId, customerId),
+  });
 }
 
 export async function listCustomers(
