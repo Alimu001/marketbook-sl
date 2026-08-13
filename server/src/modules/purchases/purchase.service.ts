@@ -94,11 +94,27 @@ async function generatePurchaseNumber(
   businessId: string,
 ): Promise<string> {
   const dateKey = formatDateKey(new Date());
-  const prefix = `PO-${dateKey}-`;
+
+  // Include a stable business-specific portion so purchase numbers
+  // remain globally unique while sequences stay per-business/per-day.
+  const businessKey = businessId.replace(/-/g, "").slice(0, 8).toUpperCase();
+  const prefix = `PO-${businessKey}-${dateKey}-`;
 
   await tx.$executeRaw`
-    INSERT INTO "PurchaseNumberSequence" ("id", "businessId", "dateKey", "lastNumber", "updatedAt")
-    VALUES (gen_random_uuid(), ${businessId}::uuid, ${dateKey}, 0, NOW())
+    INSERT INTO "PurchaseNumberSequence" (
+      "id",
+      "businessId",
+      "dateKey",
+      "lastNumber",
+      "updatedAt"
+    )
+    VALUES (
+      gen_random_uuid(),
+      ${businessId}::uuid,
+      ${dateKey},
+      0,
+      NOW()
+    )
     ON CONFLICT ("businessId", "dateKey") DO NOTHING
   `;
 

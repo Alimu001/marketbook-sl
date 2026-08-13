@@ -10,8 +10,8 @@ import type {
 } from "@marketbook/shared/validation";
 import type { Prisma, Supplier } from "../../../generated/prisma/client.js";
 import { Prisma as PrismaNamespace } from "../../../generated/prisma/client.js";
-import { formatMoney } from "../../lib/money.js";
 import { executeIdempotentMutation } from "../../lib/clientMutation.js";
+import { formatMoney } from "../../lib/money.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
 
@@ -48,6 +48,7 @@ async function getOutstandingBalance(
   supplierId: string,
 ): Promise<Prisma.Decimal> {
   const map = await getOutstandingBalanceMap(businessId, [supplierId]);
+
   return map.get(supplierId) ?? new PrismaNamespace.Decimal(0);
 }
 
@@ -131,7 +132,7 @@ export async function createSupplier(
   businessId: string,
   userId: string,
   input: CreateSupplierInput,
-  options: { mutationId?: string } = {},
+  options: { mutationId?: string | undefined } = {},
 ): Promise<SupplierDetail> {
   return executeIdempotentMutation({
     businessId,
@@ -177,9 +178,24 @@ export async function listSuppliers(
     ...(query.search
       ? {
           OR: [
-            { name: { contains: query.search, mode: "insensitive" as const } },
-            { phone: { contains: query.search, mode: "insensitive" as const } },
-            { email: { contains: query.search, mode: "insensitive" as const } },
+            {
+              name: {
+                contains: query.search,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              phone: {
+                contains: query.search,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              email: {
+                contains: query.search,
+                mode: "insensitive" as const,
+              },
+            },
           ],
         }
       : {}),
@@ -201,6 +217,7 @@ export async function listSuppliers(
     const filtered = suppliers.filter((supplier) => {
       const balance =
         balanceMap.get(supplier.id) ?? new PrismaNamespace.Decimal(0);
+
       return query.hasPayable ? balance.gt(0) : balance.lte(0);
     });
 
@@ -251,11 +268,26 @@ export async function getSupplierDetail(
   businessId: string,
   supplierId: string,
 ): Promise<SupplierDetail> {
-  const supplier = await assertSupplierInBusiness(businessId, supplierId);
-  const outstandingBalance = await getOutstandingBalance(businessId, supplierId);
-  const openPayableCount = await getOpenPayableCount(businessId, supplierId);
+  const supplier = await assertSupplierInBusiness(
+    businessId,
+    supplierId,
+  );
 
-  return toSupplierDetail(supplier, outstandingBalance, openPayableCount);
+  const outstandingBalance = await getOutstandingBalance(
+    businessId,
+    supplierId,
+  );
+
+  const openPayableCount = await getOpenPayableCount(
+    businessId,
+    supplierId,
+  );
+
+  return toSupplierDetail(
+    supplier,
+    outstandingBalance,
+    openPayableCount,
+  );
 }
 
 export async function updateSupplier(
@@ -269,17 +301,36 @@ export async function updateSupplier(
     where: { id: supplierId },
     data: {
       ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.phone !== undefined ? { phone: input.phone ?? null } : {}),
-      ...(input.email !== undefined ? { email: input.email ?? null } : {}),
-      ...(input.address !== undefined ? { address: input.address ?? null } : {}),
-      ...(input.notes !== undefined ? { notes: input.notes ?? null } : {}),
+      ...(input.phone !== undefined
+        ? { phone: input.phone ?? null }
+        : {}),
+      ...(input.email !== undefined
+        ? { email: input.email ?? null }
+        : {}),
+      ...(input.address !== undefined
+        ? { address: input.address ?? null }
+        : {}),
+      ...(input.notes !== undefined
+        ? { notes: input.notes ?? null }
+        : {}),
     },
   });
 
-  const outstandingBalance = await getOutstandingBalance(businessId, supplierId);
-  const openPayableCount = await getOpenPayableCount(businessId, supplierId);
+  const outstandingBalance = await getOutstandingBalance(
+    businessId,
+    supplierId,
+  );
 
-  return toSupplierDetail(supplier, outstandingBalance, openPayableCount);
+  const openPayableCount = await getOpenPayableCount(
+    businessId,
+    supplierId,
+  );
+
+  return toSupplierDetail(
+    supplier,
+    outstandingBalance,
+    openPayableCount,
+  );
 }
 
 export async function archiveSupplier(
@@ -293,10 +344,21 @@ export async function archiveSupplier(
     data: { isActive: false },
   });
 
-  const outstandingBalance = await getOutstandingBalance(businessId, supplierId);
-  const openPayableCount = await getOpenPayableCount(businessId, supplierId);
+  const outstandingBalance = await getOutstandingBalance(
+    businessId,
+    supplierId,
+  );
 
-  return toSupplierDetail(supplier, outstandingBalance, openPayableCount);
+  const openPayableCount = await getOpenPayableCount(
+    businessId,
+    supplierId,
+  );
+
+  return toSupplierDetail(
+    supplier,
+    outstandingBalance,
+    openPayableCount,
+  );
 }
 
 export async function restoreSupplier(
@@ -310,10 +372,21 @@ export async function restoreSupplier(
     data: { isActive: true },
   });
 
-  const outstandingBalance = await getOutstandingBalance(businessId, supplierId);
-  const openPayableCount = await getOpenPayableCount(businessId, supplierId);
+  const outstandingBalance = await getOutstandingBalance(
+    businessId,
+    supplierId,
+  );
 
-  return toSupplierDetail(supplier, outstandingBalance, openPayableCount);
+  const openPayableCount = await getOpenPayableCount(
+    businessId,
+    supplierId,
+  );
+
+  return toSupplierDetail(
+    supplier,
+    outstandingBalance,
+    openPayableCount,
+  );
 }
 
 export async function getSupplierHistory(
@@ -330,7 +403,13 @@ export async function getSupplierHistory(
     }),
     prisma.supplierPayable.findMany({
       where: { businessId, supplierId },
-      include: { purchase: { select: { purchaseNumber: true } } },
+      include: {
+        purchase: {
+          select: {
+            purchaseNumber: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
@@ -338,9 +417,21 @@ export async function getSupplierHistory(
       where: { businessId, supplierId },
       include: {
         payable: {
-          include: { purchase: { select: { purchaseNumber: true } } },
+          include: {
+            purchase: {
+              select: {
+                purchaseNumber: true,
+              },
+            },
+          },
         },
-        recordedBy: { select: { id: true, name: true, email: true } },
+        recordedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -348,7 +439,11 @@ export async function getSupplierHistory(
     prisma.supplierReturn.findMany({
       where: { businessId, supplierId },
       include: {
-        purchase: { select: { purchaseNumber: true } },
+        purchase: {
+          select: {
+            purchaseNumber: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -365,6 +460,7 @@ export async function getSupplierHistory(
       paymentStatus: purchase.paymentStatus,
       createdAt: purchase.createdAt.toISOString(),
     })),
+
     payables: payables.map((payable) => ({
       id: payable.id,
       purchaseId: payable.purchaseId,
@@ -375,6 +471,7 @@ export async function getSupplierHistory(
       status: payable.status,
       createdAt: payable.createdAt.toISOString(),
     })),
+
     payments: payments.map((payment) => ({
       id: payment.id,
       amount: formatMoney(payment.amount),
@@ -390,6 +487,7 @@ export async function getSupplierHistory(
       createdAt: payment.createdAt.toISOString(),
       purchaseNumber: payment.payable.purchase.purchaseNumber,
     })),
+
     returns: returns.map((entry) => ({
       id: entry.id,
       returnNumber: entry.returnNumber,

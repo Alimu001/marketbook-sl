@@ -47,7 +47,7 @@ export function getIdempotencyKeyFromRequest(
 interface ExecuteIdempotentMutationOptions<T> {
   businessId: string;
   userId: string;
-  mutationId?: string;
+  mutationId?: string | undefined;
   entityType: ClientMutationEntityType;
   payload: unknown;
   execute: () => Promise<{ entityId: string; result: T }>;

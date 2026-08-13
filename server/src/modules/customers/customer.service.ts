@@ -10,8 +10,8 @@ import type {
 } from "@marketbook/shared/validation";
 import type { Customer, Prisma } from "../../../generated/prisma/client.js";
 import { Prisma as PrismaNamespace } from "../../../generated/prisma/client.js";
-import { formatMoney } from "../../lib/money.js";
 import { executeIdempotentMutation } from "../../lib/clientMutation.js";
+import { formatMoney } from "../../lib/money.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
 import { getWalletBalanceMap } from "../wallet/wallet.service.js";
@@ -49,6 +49,7 @@ async function getOutstandingBalance(
   customerId: string,
 ): Promise<Prisma.Decimal> {
   const map = await getOutstandingBalanceMap(businessId, [customerId]);
+
   return map.get(customerId) ?? new PrismaNamespace.Decimal(0);
 }
 
@@ -136,7 +137,7 @@ export async function createCustomer(
   businessId: string,
   userId: string,
   input: CreateCustomerInput,
-  options: { mutationId?: string } = {},
+  options: { mutationId?: string | undefined } = {},
 ): Promise<CustomerDetail> {
   return executeIdempotentMutation({
     businessId,
@@ -183,9 +184,24 @@ export async function listCustomers(
     ...(query.search
       ? {
           OR: [
-            { name: { contains: query.search, mode: "insensitive" as const } },
-            { phone: { contains: query.search, mode: "insensitive" as const } },
-            { email: { contains: query.search, mode: "insensitive" as const } },
+            {
+              name: {
+                contains: query.search,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              phone: {
+                contains: query.search,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              email: {
+                contains: query.search,
+                mode: "insensitive" as const,
+              },
+            },
           ],
         }
       : {}),
@@ -203,13 +219,16 @@ export async function listCustomers(
       businessId,
       customers.map((customer) => customer.id),
     );
+
     const walletMap = await getWalletBalanceMap(
       businessId,
       customers.map((customer) => customer.id),
     );
 
     const filtered = customers.filter((customer) => {
-      const balance = balanceMap.get(customer.id) ?? new PrismaNamespace.Decimal(0);
+      const balance =
+        balanceMap.get(customer.id) ?? new PrismaNamespace.Decimal(0);
+
       return query.hasDebt ? balance.gt(0) : balance.lte(0);
     });
 
@@ -243,6 +262,7 @@ export async function listCustomers(
     businessId,
     customers.map((customer) => customer.id),
   );
+
   const walletMap = await getWalletBalanceMap(
     businessId,
     customers.map((customer) => customer.id),
@@ -266,9 +286,20 @@ async function buildCustomerDetail(
   customer: Customer,
   businessId: string,
 ): Promise<CustomerDetail> {
-  const outstandingBalance = await getOutstandingBalance(businessId, customer.id);
-  const walletMap = await getWalletBalanceMap(businessId, [customer.id]);
-  const openDebtCount = await getOpenDebtCount(businessId, customer.id);
+  const outstandingBalance = await getOutstandingBalance(
+    businessId,
+    customer.id,
+  );
+
+  const walletMap = await getWalletBalanceMap(
+    businessId,
+    [customer.id],
+  );
+
+  const openDebtCount = await getOpenDebtCount(
+    businessId,
+    customer.id,
+  );
 
   return toCustomerDetail(
     customer,
@@ -282,7 +313,11 @@ export async function getCustomerDetail(
   businessId: string,
   customerId: string,
 ): Promise<CustomerDetail> {
-  const customer = await assertCustomerInBusiness(businessId, customerId);
+  const customer = await assertCustomerInBusiness(
+    businessId,
+    customerId,
+  );
+
   return buildCustomerDetail(customer, businessId);
 }
 
@@ -297,10 +332,18 @@ export async function updateCustomer(
     where: { id: customerId },
     data: {
       ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.phone !== undefined ? { phone: input.phone ?? null } : {}),
-      ...(input.email !== undefined ? { email: input.email ?? null } : {}),
-      ...(input.address !== undefined ? { address: input.address ?? null } : {}),
-      ...(input.notes !== undefined ? { notes: input.notes ?? null } : {}),
+      ...(input.phone !== undefined
+        ? { phone: input.phone ?? null }
+        : {}),
+      ...(input.email !== undefined
+        ? { email: input.email ?? null }
+        : {}),
+      ...(input.address !== undefined
+        ? { address: input.address ?? null }
+        : {}),
+      ...(input.notes !== undefined
+        ? { notes: input.notes ?? null }
+        : {}),
     },
   });
 
@@ -349,15 +392,35 @@ export async function getCustomerHistory(
     }),
     prisma.customerDebt.findMany({
       where: { businessId, customerId },
-      include: { sale: { select: { receiptNumber: true } } },
+      include: {
+        sale: {
+          select: {
+            receiptNumber: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
     prisma.debtPayment.findMany({
       where: { businessId, customerId },
       include: {
-        debt: { include: { sale: { select: { receiptNumber: true } } } },
-        recordedBy: { select: { id: true, name: true, email: true } },
+        debt: {
+          include: {
+            sale: {
+              select: {
+                receiptNumber: true,
+              },
+            },
+          },
+        },
+        recordedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -374,6 +437,7 @@ export async function getCustomerHistory(
       paymentStatus: sale.paymentStatus,
       createdAt: sale.createdAt.toISOString(),
     })),
+
     debts: debts.map((debt) => ({
       id: debt.id,
       saleId: debt.saleId,
@@ -384,6 +448,7 @@ export async function getCustomerHistory(
       status: debt.status,
       createdAt: debt.createdAt.toISOString(),
     })),
+
     payments: payments.map((payment) => ({
       id: payment.id,
       amount: formatMoney(payment.amount),

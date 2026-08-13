@@ -1102,7 +1102,9 @@ describe("Customers, credit sales, and debts API", () => {
         outstandingAmount: "240.00",
         status: "OPEN",
       });
-      expect(response.body.data[0].receiptNumber).toMatch(/^MB-\d{8}-\d{6}$/);
+      expect(response.body.data[0].receiptNumber).toMatch(
+        /^MB-[A-F0-9]{8}-\d{8}-\d{6}$/,
+      );
     });
 
     it("41. lists customer debts with status filter", async () => {

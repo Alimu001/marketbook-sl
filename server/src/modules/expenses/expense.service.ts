@@ -12,11 +12,11 @@ import {
   formatExpenseDateOutput,
   parseExpenseDateInput,
 } from "../../lib/expenseDate.js";
+import { executeIdempotentMutation } from "../../lib/clientMutation.js";
 import {
   formatMoney,
   toMoneyDecimalFromString,
 } from "../../lib/money.js";
-import { executeIdempotentMutation } from "../../lib/clientMutation.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
 import { assertExpenseCategoryInBusiness } from "./expense-category.service.js";
@@ -42,7 +42,9 @@ type ExpenseWithRelations = Prisma.ExpenseGetPayload<{
   include: typeof expenseInclude;
 }>;
 
-function toExpenseListItem(expense: ExpenseWithRelations): ExpenseListItem {
+function toExpenseListItem(
+  expense: ExpenseWithRelations,
+): ExpenseListItem {
   return {
     id: expense.id,
     amount: formatMoney(expense.amount),
@@ -65,7 +67,9 @@ function toExpenseListItem(expense: ExpenseWithRelations): ExpenseListItem {
   };
 }
 
-function toExpenseDetail(expense: ExpenseWithRelations): ExpenseDetail {
+function toExpenseDetail(
+  expense: ExpenseWithRelations,
+): ExpenseDetail {
   return {
     id: expense.id,
     businessId: expense.businessId,
@@ -104,7 +108,11 @@ async function assertExpenseInBusiness(
   });
 
   if (!expense) {
-    throw new AppError(404, "Expense not found", "EXPENSE_NOT_FOUND");
+    throw new AppError(
+      404,
+      "Expense not found",
+      "EXPENSE_NOT_FOUND",
+    );
   }
 
   return expense;
@@ -114,16 +122,20 @@ async function validateCategoryForExpense(
   businessId: string,
   categoryId: string,
 ): Promise<void> {
-  await assertExpenseCategoryInBusiness(businessId, categoryId, {
-    requireActive: true,
-  });
+  await assertExpenseCategoryInBusiness(
+    businessId,
+    categoryId,
+    {
+      requireActive: true,
+    },
+  );
 }
 
 export async function createExpense(
   businessId: string,
   recordedByUserId: string,
   input: CreateExpenseInput,
-  options: { mutationId?: string } = {},
+  options: { mutationId?: string | undefined } = {},
 ): Promise<ExpenseDetail> {
   return executeIdempotentMutation({
     businessId,
@@ -131,10 +143,16 @@ export async function createExpense(
     mutationId: options.mutationId,
     entityType: "EXPENSE",
     payload: input,
-    execute: async () => {
-      await validateCategoryForExpense(businessId, input.categoryId);
 
-      const amount = toMoneyDecimalFromString(input.amount);
+    execute: async () => {
+      await validateCategoryForExpense(
+        businessId,
+        input.categoryId,
+      );
+
+      const amount = toMoneyDecimalFromString(
+        input.amount,
+      );
 
       if (amount.lte(0)) {
         throw new AppError(
@@ -144,7 +162,9 @@ export async function createExpense(
         );
       }
 
-      const expenseDate = parseExpenseDateInput(input.expenseDate);
+      const expenseDate = parseExpenseDateInput(
+        input.expenseDate,
+      );
 
       const expense = await prisma.expense.create({
         data: {
@@ -154,8 +174,10 @@ export async function createExpense(
           amount,
           paymentMethod: input.paymentMethod,
           expenseDate,
-          vendorOrPayee: input.vendorOrPayee ?? null,
-          referenceNumber: input.referenceNumber ?? null,
+          vendorOrPayee:
+            input.vendorOrPayee ?? null,
+          referenceNumber:
+            input.referenceNumber ?? null,
           description: input.description,
           notes: input.notes ?? null,
         },
@@ -169,8 +191,12 @@ export async function createExpense(
         result: detail,
       };
     },
+
     loadExisting: (expenseId) =>
-      getExpenseDetail(businessId, expenseId),
+      getExpenseDetail(
+        businessId,
+        expenseId,
+      ),
   });
 }
 
@@ -180,24 +206,47 @@ export async function listExpenses(
 ) {
   const where: Prisma.ExpenseWhereInput = {
     businessId,
-    ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-    ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
+
+    ...(query.categoryId
+      ? { categoryId: query.categoryId }
+      : {}),
+
+    ...(query.paymentMethod
+      ? { paymentMethod: query.paymentMethod }
+      : {}),
+
     ...(query.isArchived !== undefined
       ? { isArchived: query.isArchived }
       : {}),
+
     ...(query.recordedByUserId
-      ? { recordedByUserId: query.recordedByUserId }
+      ? {
+          recordedByUserId:
+            query.recordedByUserId,
+        }
       : {}),
+
     ...(query.from || query.to
       ? {
           expenseDate: {
             ...(query.from
-              ? { gte: parseExpenseDateInput(query.from) }
+              ? {
+                  gte: parseExpenseDateInput(
+                    query.from,
+                  ),
+                }
               : {}),
-            ...(query.to ? { lte: parseExpenseDateInput(query.to) } : {}),
+            ...(query.to
+              ? {
+                  lte: parseExpenseDateInput(
+                    query.to,
+                  ),
+                }
+              : {}),
           },
         }
       : {}),
+
     ...(query.search
       ? {
           OR: [
@@ -232,21 +281,35 @@ export async function listExpenses(
       : {}),
   };
 
-  const skip = (query.page - 1) * query.limit;
+  const skip =
+    (query.page - 1) * query.limit;
 
-  const [total, expenses] = await prisma.$transaction([
-    prisma.expense.count({ where }),
-    prisma.expense.findMany({
-      where,
-      include: expenseInclude,
-      orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }],
-      skip,
-      take: query.limit,
-    }),
-  ]);
+  const [total, expenses] =
+    await prisma.$transaction([
+      prisma.expense.count({
+        where,
+      }),
+
+      prisma.expense.findMany({
+        where,
+        include: expenseInclude,
+        orderBy: [
+          {
+            expenseDate: "desc",
+          },
+          {
+            createdAt: "desc",
+          },
+        ],
+        skip,
+        take: query.limit,
+      }),
+    ]);
 
   return {
-    items: expenses.map(toExpenseListItem),
+    items: expenses.map(
+      toExpenseListItem,
+    ),
     page: query.page,
     limit: query.limit,
     total,
@@ -257,16 +320,21 @@ export async function getExpenseDetail(
   businessId: string,
   expenseId: string,
 ): Promise<ExpenseDetail> {
-  const expense = await prisma.expense.findFirst({
-    where: {
-      id: expenseId,
-      businessId,
-    },
-    include: expenseInclude,
-  });
+  const expense =
+    await prisma.expense.findFirst({
+      where: {
+        id: expenseId,
+        businessId,
+      },
+      include: expenseInclude,
+    });
 
   if (!expense) {
-    throw new AppError(404, "Expense not found", "EXPENSE_NOT_FOUND");
+    throw new AppError(
+      404,
+      "Expense not found",
+      "EXPENSE_NOT_FOUND",
+    );
   }
 
   return toExpenseDetail(expense);
@@ -277,16 +345,27 @@ export async function updateExpense(
   expenseId: string,
   input: UpdateExpenseInput,
 ): Promise<ExpenseDetail> {
-  await assertExpenseInBusiness(businessId, expenseId);
+  await assertExpenseInBusiness(
+    businessId,
+    expenseId,
+  );
 
   if (input.categoryId !== undefined) {
-    await validateCategoryForExpense(businessId, input.categoryId);
+    await validateCategoryForExpense(
+      businessId,
+      input.categoryId,
+    );
   }
 
-  let amount: Prisma.Decimal | undefined;
+  let amount:
+    | Prisma.Decimal
+    | undefined;
 
   if (input.amount !== undefined) {
-    amount = toMoneyDecimalFromString(input.amount);
+    amount =
+      toMoneyDecimalFromString(
+        input.amount,
+      );
 
     if (amount.lte(0)) {
       throw new AppError(
@@ -297,30 +376,75 @@ export async function updateExpense(
     }
   }
 
-  const expense = await prisma.expense.update({
-    where: { id: expenseId },
-    data: {
-      ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
-      ...(amount !== undefined ? { amount } : {}),
-      ...(input.paymentMethod !== undefined
-        ? { paymentMethod: input.paymentMethod }
-        : {}),
-      ...(input.expenseDate !== undefined
-        ? { expenseDate: parseExpenseDateInput(input.expenseDate) }
-        : {}),
-      ...(input.vendorOrPayee !== undefined
-        ? { vendorOrPayee: input.vendorOrPayee ?? null }
-        : {}),
-      ...(input.referenceNumber !== undefined
-        ? { referenceNumber: input.referenceNumber ?? null }
-        : {}),
-      ...(input.description !== undefined
-        ? { description: input.description }
-        : {}),
-      ...(input.notes !== undefined ? { notes: input.notes ?? null } : {}),
-    },
-    include: expenseInclude,
-  });
+  const expense =
+    await prisma.expense.update({
+      where: {
+        id: expenseId,
+      },
+
+      data: {
+        ...(input.categoryId !== undefined
+          ? {
+              categoryId:
+                input.categoryId,
+            }
+          : {}),
+
+        ...(amount !== undefined
+          ? {
+              amount,
+            }
+          : {}),
+
+        ...(input.paymentMethod !== undefined
+          ? {
+              paymentMethod:
+                input.paymentMethod,
+            }
+          : {}),
+
+        ...(input.expenseDate !== undefined
+          ? {
+              expenseDate:
+                parseExpenseDateInput(
+                  input.expenseDate,
+                ),
+            }
+          : {}),
+
+        ...(input.vendorOrPayee !== undefined
+          ? {
+              vendorOrPayee:
+                input.vendorOrPayee ??
+                null,
+            }
+          : {}),
+
+        ...(input.referenceNumber !== undefined
+          ? {
+              referenceNumber:
+                input.referenceNumber ??
+                null,
+            }
+          : {}),
+
+        ...(input.description !== undefined
+          ? {
+              description:
+                input.description,
+            }
+          : {}),
+
+        ...(input.notes !== undefined
+          ? {
+              notes:
+                input.notes ?? null,
+            }
+          : {}),
+      },
+
+      include: expenseInclude,
+    });
 
   return toExpenseDetail(expense);
 }
@@ -329,13 +453,23 @@ export async function archiveExpense(
   businessId: string,
   expenseId: string,
 ): Promise<ExpenseDetail> {
-  await assertExpenseInBusiness(businessId, expenseId);
+  await assertExpenseInBusiness(
+    businessId,
+    expenseId,
+  );
 
-  const expense = await prisma.expense.update({
-    where: { id: expenseId },
-    data: { isArchived: true },
-    include: expenseInclude,
-  });
+  const expense =
+    await prisma.expense.update({
+      where: {
+        id: expenseId,
+      },
+
+      data: {
+        isArchived: true,
+      },
+
+      include: expenseInclude,
+    });
 
   return toExpenseDetail(expense);
 }
@@ -344,13 +478,23 @@ export async function restoreExpense(
   businessId: string,
   expenseId: string,
 ): Promise<ExpenseDetail> {
-  await assertExpenseInBusiness(businessId, expenseId);
+  await assertExpenseInBusiness(
+    businessId,
+    expenseId,
+  );
 
-  const expense = await prisma.expense.update({
-    where: { id: expenseId },
-    data: { isArchived: false },
-    include: expenseInclude,
-  });
+  const expense =
+    await prisma.expense.update({
+      where: {
+        id: expenseId,
+      },
+
+      data: {
+        isArchived: false,
+      },
+
+      include: expenseInclude,
+    });
 
   return toExpenseDetail(expense);
 }

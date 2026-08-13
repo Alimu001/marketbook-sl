@@ -1422,7 +1422,9 @@ describe("Suppliers, purchases, payables, and inventory API", () => {
         outstandingAmount: "210.00",
         status: "OPEN",
       });
-      expect(response.body.data[0].purchaseNumber).toMatch(/^PO-\d{8}-\d{6}$/);
+      expect(response.body.data[0].purchaseNumber).toMatch(
+        /^PO-[A-F0-9]{8}-\d{8}-\d{6}$/,
+      );
     });
 
     it("49. lists supplier payables with status filter", async () => {

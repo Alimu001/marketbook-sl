@@ -12,9 +12,45 @@ import { listProducts } from "@/api/products";
 import { listPurchases } from "@/api/purchases";
 import { listSales } from "@/api/sales";
 import { listSuppliers as apiListSuppliers } from "@/api/suppliers";
-import { upsertCacheRecord, pruneCacheHistory, setSyncMetadata } from "./cache/base";
-import type { SyncScope } from "./types";
+import {
+  pruneCacheHistory,
+  setSyncMetadata,
+  upsertCacheRecord,
+} from "./cache/base";
 import { CACHE_HISTORY_LIMIT } from "./types";
+import type { SyncScope } from "./types";
+
+const API_PAGE_LIMIT = 100;
+const LARGE_CACHE_LIMIT = 500;
+
+async function fetchAllPages<T>(
+  fetchPage: (page: number, limit: number) => Promise<{
+    items: T[];
+    total: number;
+  }>,
+  maxItems = LARGE_CACHE_LIMIT,
+): Promise<T[]> {
+  const items: T[] = [];
+  let page = 1;
+
+  while (items.length < maxItems) {
+    const response = await fetchPage(page, API_PAGE_LIMIT);
+
+    items.push(...response.items);
+
+    if (
+      response.items.length < API_PAGE_LIMIT ||
+      items.length >= response.total ||
+      items.length >= maxItems
+    ) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return items.slice(0, maxItems);
+}
 
 export async function refreshReadCaches(scope: SyncScope): Promise<void> {
   const [
@@ -32,27 +68,66 @@ export async function refreshReadCaches(scope: SyncScope): Promise<void> {
     payments,
   ] = await Promise.all([
     listBusinesses(scope.accessToken),
-    listProducts(scope.accessToken, scope.businessId, { limit: 500, page: 1 }),
-    listInventory(scope.accessToken, scope.businessId, { limit: 500, page: 1 }),
-    apiListCustomers(scope.accessToken, scope.businessId, { limit: 500, page: 1 }),
-    apiListSuppliers(scope.accessToken, scope.businessId, { limit: 500, page: 1 }),
-    listSales(scope.accessToken, scope.businessId, { limit: CACHE_HISTORY_LIMIT, page: 1 }),
+
+    fetchAllPages((page, limit) =>
+      listProducts(scope.accessToken, scope.businessId, {
+        limit,
+        page,
+      }),
+    ),
+
+    fetchAllPages((page, limit) =>
+      listInventory(scope.accessToken, scope.businessId, {
+        limit,
+        page,
+      }),
+    ),
+
+    fetchAllPages((page, limit) =>
+      apiListCustomers(scope.accessToken, scope.businessId, {
+        limit,
+        page,
+      }),
+    ),
+
+    fetchAllPages((page, limit) =>
+      apiListSuppliers(scope.accessToken, scope.businessId, {
+        limit,
+        page,
+      }),
+    ),
+
+    listSales(scope.accessToken, scope.businessId, {
+      limit: Math.min(CACHE_HISTORY_LIMIT, API_PAGE_LIMIT),
+      page: 1,
+    }),
+
     listPurchases(scope.accessToken, scope.businessId, {
-      limit: CACHE_HISTORY_LIMIT,
+      limit: Math.min(CACHE_HISTORY_LIMIT, API_PAGE_LIMIT),
       page: 1,
     }),
+
     apiListExpenses(scope.accessToken, scope.businessId, {
-      limit: CACHE_HISTORY_LIMIT,
+      limit: Math.min(CACHE_HISTORY_LIMIT, API_PAGE_LIMIT),
       page: 1,
     }),
-    listExpenseCategories(scope.accessToken, scope.businessId, { isActive: true }),
-    listBusinessDebts(scope.accessToken, scope.businessId, { limit: CACHE_HISTORY_LIMIT, page: 1 }),
+
+    listExpenseCategories(scope.accessToken, scope.businessId, {
+      isActive: true,
+    }),
+
+    listBusinessDebts(scope.accessToken, scope.businessId, {
+      limit: Math.min(CACHE_HISTORY_LIMIT, API_PAGE_LIMIT),
+      page: 1,
+    }),
+
     listBusinessPayables(scope.accessToken, scope.businessId, {
-      limit: CACHE_HISTORY_LIMIT,
+      limit: Math.min(CACHE_HISTORY_LIMIT, API_PAGE_LIMIT),
       page: 1,
     }),
+
     listPayments(scope.accessToken, scope.businessId, {
-      limit: CACHE_HISTORY_LIMIT,
+      limit: Math.min(CACHE_HISTORY_LIMIT, API_PAGE_LIMIT),
       page: 1,
     }),
   ]);
@@ -100,18 +175,23 @@ export async function refreshReadCaches(scope: SyncScope): Promise<void> {
         entityType === "customer" ||
         entityType === "supplier" ||
         entityType === "expense_category"
-        ? 500
+        ? LARGE_CACHE_LIMIT
         : CACHE_HISTORY_LIMIT,
     );
   };
 
-  await upsertMany("product", products.items);
+  await upsertMany("product", products);
+
   await upsertMany(
     "inventory",
-    inventory.items.map((item) => ({ ...item, id: item.productId })),
+    inventory.map((item) => ({
+      ...item,
+      id: item.productId,
+    })),
   );
-  await upsertMany("customer", customers.items);
-  await upsertMany("supplier", suppliers.items);
+
+  await upsertMany("customer", customers);
+  await upsertMany("supplier", suppliers);
   await upsertMany("sale", sales.items);
   await upsertMany("purchase", purchases.items);
   await upsertMany("expense", expenses.items);
@@ -121,5 +201,11 @@ export async function refreshReadCaches(scope: SyncScope): Promise<void> {
   await upsertMany("payment", payments.items);
 
   const now = new Date().toISOString();
-  await setSyncMetadata(scope.userId, scope.businessId, "last_refreshed_at", now);
+
+  await setSyncMetadata(
+    scope.userId,
+    scope.businessId,
+    "last_refreshed_at",
+    now,
+  );
 }

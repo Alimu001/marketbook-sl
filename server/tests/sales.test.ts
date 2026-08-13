@@ -660,7 +660,9 @@ describe("Sales API", () => {
         unitSnapshot: "bag",
         unitPrice: "120.00",
       });
-      expect(response.body.data.receiptNumber).toMatch(/^MB-\d{8}-\d{6}$/);
+      expect(response.body.data.receiptNumber).toMatch(
+        /^MB-[A-F0-9]{8}-\d{8}-\d{6}$/,
+      );
     });
 
     it("preserves historical name after product rename", async () => {

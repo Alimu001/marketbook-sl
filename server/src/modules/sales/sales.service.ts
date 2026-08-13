@@ -71,7 +71,8 @@ async function generateReceiptNumber(
   businessId: string,
 ): Promise<string> {
   const dateKey = formatDateKey(new Date());
-  const prefix = `MB-${dateKey}-`;
+  const businessKey = businessId.replace(/-/g, "").slice(0, 8).toUpperCase();
+  const prefix = `MB-${businessKey}-${dateKey}-`;
 
   await tx.$executeRaw`
     INSERT INTO "SaleReceiptSequence" ("id", "businessId", "dateKey", "lastNumber", "updatedAt")
