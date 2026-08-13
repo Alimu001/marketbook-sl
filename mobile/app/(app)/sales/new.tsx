@@ -467,7 +467,7 @@ export default function NewSaleScreen() {
         clearSelectedCustomer();
         router.replace({
           pathname: "/(app)/sales/payment/[paymentId]",
-          params: { paymentId: result.payment.id },
+          params: { paymentId: result.id },
         });
         return;
       }
@@ -498,6 +498,13 @@ export default function NewSaleScreen() {
         },
       });
     } catch (error) {
+      console.error("PAYMENT CHECKOUT ERROR:", error);
+
+      if (error instanceof Error) {
+        console.error("PAYMENT ERROR NAME:", error.name);
+        console.error("PAYMENT ERROR MESSAGE:", error.message);
+        console.error("PAYMENT ERROR STACK:", error.stack);
+      }
       if (error instanceof ApiError && error.status === 401) {
         router.replace("/(auth)/login");
         return;

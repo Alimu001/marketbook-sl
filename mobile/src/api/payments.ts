@@ -86,9 +86,7 @@ export interface InitiatePaymentPayload {
   };
 }
 
-export interface InitiatePaymentResponse {
-  payment: PaymentDetail;
-}
+export type InitiatePaymentResponse = PaymentDetail;
 
 export interface ListPaymentsParams {
   page?: number;
