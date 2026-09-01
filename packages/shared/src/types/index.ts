@@ -40,6 +40,11 @@ export type {
 } from "./sales.js";
 
 export type {
+  SaleReceiptItem,
+  SaleReceiptResponse,
+} from "./receipt.js";
+
+export type {
   InitiatePaymentResponse,
   PaymentDetailResponse,
   PaymentListItem,

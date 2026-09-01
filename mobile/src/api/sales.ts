@@ -1,10 +1,11 @@
-import { apiRequest, apiRequestPaginated } from "./client";
+import { apiRequest, apiRequestPaginated, apiRequestText } from "./client";
 import { businessScopedPath } from "./businesses";
 import type {
   CreateSalePayload,
   ListSalesParams,
   SaleDetail,
   SaleListItem,
+  SaleReceipt,
 } from "@/sales/types";
 import type { PaginatedResponse } from "./errors";
 
@@ -71,5 +72,27 @@ export function createSale(
     method: "POST",
     accessToken,
     body: input,
+  });
+}
+
+export function getSaleReceipt(
+  accessToken: string,
+  businessId: string,
+  saleId: string,
+): Promise<SaleReceipt> {
+  return apiRequest<SaleReceipt>(
+    salesPath(businessId, `/${saleId}/receipt`),
+    { method: "GET", accessToken },
+  );
+}
+
+export function getSaleReceiptHtml(
+  accessToken: string,
+  businessId: string,
+  saleId: string,
+): Promise<string> {
+  return apiRequestText(salesPath(businessId, `/${saleId}/receipt/print`), {
+    method: "GET",
+    accessToken,
   });
 }

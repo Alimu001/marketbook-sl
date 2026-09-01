@@ -10,7 +10,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getDashboardSummary } from "@/api/reports";
+import { useOffline } from "@/offline/OfflineProvider";
+import { getDashboardSummary } from "@/offline/repositories/reports.repository";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { formatBusinessRole, useBusiness } from "@/business";
@@ -69,6 +70,7 @@ export default function AppHomeScreen() {
   const router = useRouter();
   const { accessToken, logout } = useAuth();
   const { currentBusiness, businesses } = useBusiness();
+  const { networkStatus, getScope, isOfflineData } = useOffline();
   const [preset, setPreset] = useState<ReportPeriodPreset>("today");
   const [range, setRange] = useState<ReportPeriodRange>(getTodayRange());
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
@@ -92,12 +94,20 @@ export default function AppHomeScreen() {
       setErrorMessage(undefined);
 
       try {
-        const summary = await getDashboardSummary(
-          accessToken,
-          currentBusiness.id,
+        const scope = getScope();
+
+        if (!scope) {
+          setDashboard(null);
+          return;
+        }
+
+        const result = await getDashboardSummary(
+          scope,
+          networkStatus,
           range,
         );
-        setDashboard(summary);
+
+        setDashboard(result.data);
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
           await logout();
@@ -111,7 +121,15 @@ export default function AppHomeScreen() {
         setIsRefreshing(false);
       }
     },
-    [accessToken, currentBusiness, logout, range, router],
+    [
+      accessToken,
+      currentBusiness,
+      getScope,
+      logout,
+      networkStatus,
+      range,
+      router,
+    ],
   );
 
   useEffect(() => {
@@ -189,6 +207,10 @@ export default function AppHomeScreen() {
             setRange(nextRange);
           }}
         />
+
+        {isOfflineData ? (
+          <Text style={styles.offlineHint}>Showing saved dashboard data</Text>
+        ) : null}
 
         <FormMessage message={errorMessage} type="error" />
 
@@ -302,6 +324,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#475569",
     fontWeight: "600",
+  },
+  offlineHint: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B",
   },
   subtitle: {
     fontSize: 18,

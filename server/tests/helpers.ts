@@ -40,7 +40,21 @@ export async function resetBizTestData(): Promise<void> {
     distinct: ["businessId"],
   });
 
-  const testBusinessIds = testBusinesses.map((entry) => entry.businessId);
+  const markedTestBusinesses = await prisma.business.findMany({
+    where: {
+      name: {
+        startsWith: "TEST:",
+      },
+    },
+    select: { id: true },
+  });
+
+  const testBusinessIds = [
+    ...new Set([
+      ...testBusinesses.map((entry) => entry.businessId),
+      ...markedTestBusinesses.map((business) => business.id),
+    ]),
+  ];
 
   await prisma.refreshToken.deleteMany({
     where: {
@@ -376,7 +390,7 @@ export async function setupOwnerBusiness(app: Express, label: string) {
   const businessResponse = await createBusiness(
     app,
     owner.accessToken,
-    `${label} Business`,
+    `TEST:${label} Business`,
   );
 
   return {

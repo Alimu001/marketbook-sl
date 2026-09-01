@@ -24,6 +24,8 @@ export type {
   SaleItem,
   SaleListItem,
   SalePaymentStatus,
+  SaleReceipt,
+  SaleReceiptItem,
 } from "./types";
 export {
   CHECKOUT_PAYMENT_OPTIONS,

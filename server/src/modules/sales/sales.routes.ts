@@ -6,6 +6,7 @@ import {
 import { validate, validateQuery } from "../../middleware/validate.js";
 import { saleReversalRouter } from "../reversals/reversal.routes.js";
 import * as salesController from "./sales.controller.js";
+import * as receiptController from "../receipts/receipt.controller.js";
 
 export const salesRouter = Router({ mergeParams: true });
 
@@ -17,6 +18,8 @@ salesRouter.get(
   salesController.listSales,
 );
 
+salesRouter.get("/:saleId/receipt", receiptController.getReceipt);
+salesRouter.get("/:saleId/receipt/print", receiptController.printReceipt);
 salesRouter.get("/:saleId", salesController.getSaleDetail);
 
 salesRouter.use("/:saleId", saleReversalRouter);

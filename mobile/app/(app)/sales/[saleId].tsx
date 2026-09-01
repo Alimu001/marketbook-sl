@@ -21,7 +21,13 @@ import { useBusiness } from "@/business";
 import { FormButton, FormMessage } from "@/components/AuthScreen";
 import { formatQuantityDisplay } from "@/inventory/quantity";
 import { formatMoneyDisplay } from "@/products/money";
-import { saleNewHref, saleRefundHref, saleVoidHref, salesHref } from "@/navigation/hrefs";
+import {
+  saleNewHref,
+  saleReceiptHref,
+  saleRefundHref,
+  saleVoidHref,
+  salesHref,
+} from "@/navigation/hrefs";
 import {
   canCreateSaleRefund,
   canVoidSale,
@@ -240,6 +246,10 @@ export default function SaleDetailScreen() {
         ) : null}
 
         <View style={styles.actions}>
+          <FormButton
+            label="View / Print Receipt"
+            onPress={() => router.push(saleReceiptHref(saleId))}
+          />
           {sale.status === "COMPLETED" && canRefund && reversalSummary &&
           !reversalSummary.isFullyRefunded ? (
             <FormButton

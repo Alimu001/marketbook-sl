@@ -290,7 +290,7 @@ model Sale {
   createdByUserId     String             @db.Uuid
   customerId          String?            @db.Uuid
   customerNameSnapshot String?
-  receiptNumber       String             @unique
+  receiptNumber       String
   subtotal            Decimal            @db.Decimal(19, 4)
   discountAmount      Decimal            @default(0) @db.Decimal(19, 4)
   totalAmount         Decimal            @db.Decimal(19, 4)
@@ -325,6 +325,7 @@ model Sale {
   @@index([paymentStatus])
   @@index([createdByUserId])
   @@index([customerId])
+  @@unique([businessId, receiptNumber])
 }
 
 model SaleItem {
@@ -352,7 +353,7 @@ model SaleRefund {
   id                  String         @id @default(uuid()) @db.Uuid
   businessId          String         @db.Uuid
   saleId              String         @db.Uuid
-  refundNumber        String         @unique
+  refundNumber        String
   refundAmount        Decimal        @db.Decimal(19, 4)
   receivableReduction Decimal        @default(0) @db.Decimal(19, 4)
   cashReturnAmount    Decimal        @default(0) @db.Decimal(19, 4)
@@ -373,6 +374,7 @@ model SaleRefund {
   @@index([saleId])
   @@index([businessId, createdAt])
   @@index([createdByUserId])
+  @@unique([businessId, refundNumber])
 }
 
 model SaleRefundItem {
@@ -591,7 +593,7 @@ model Purchase {
   supplierId          String            @db.Uuid
   createdByUserId     String            @db.Uuid
   supplierNameSnapshot String
-  purchaseNumber      String            @unique
+  purchaseNumber      String
   subtotal            Decimal           @db.Decimal(19, 4)
   discountAmount      Decimal           @default(0) @db.Decimal(19, 4)
   totalAmount         Decimal           @db.Decimal(19, 4)
@@ -618,6 +620,7 @@ model Purchase {
   @@index([supplierId])
   @@index([paymentStatus])
   @@index([createdByUserId])
+  @@unique([businessId, purchaseNumber])
 }
 
 model PurchaseItem {
@@ -645,7 +648,7 @@ model SupplierReturn {
   businessId          String         @db.Uuid
   purchaseId          String         @db.Uuid
   supplierId          String         @db.Uuid
-  returnNumber        String         @unique
+  returnNumber        String
   returnAmount        Decimal        @db.Decimal(19, 4)
   payableReduction    Decimal        @default(0) @db.Decimal(19, 4)
   cashRefundAmount    Decimal        @default(0) @db.Decimal(19, 4)
@@ -666,6 +669,7 @@ model SupplierReturn {
   @@index([supplierId])
   @@index([businessId, createdAt])
   @@index([createdByUserId])
+  @@unique([businessId, returnNumber])
 }
 
 model SupplierReturnItem {

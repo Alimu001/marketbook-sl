@@ -45,6 +45,10 @@ export function saleDetailHref(saleId: string): Href {
   return `/(app)/sales/${saleId}` as Href;
 }
 
+export function saleReceiptHref(saleId: string): Href {
+  return `/(app)/sales/receipt/${saleId}` as Href;
+}
+
 export function saleRefundHref(saleId: string): Href {
   return `/(app)/sales/refund/${saleId}` as Href;
 }

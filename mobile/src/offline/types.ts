@@ -14,6 +14,7 @@ export type SyncOperationType =
 
 export type CacheEntityType =
   | "business"
+  | "dashboard"
   | "product"
   | "inventory"
   | "customer"

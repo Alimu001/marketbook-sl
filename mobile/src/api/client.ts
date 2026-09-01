@@ -188,3 +188,60 @@ export async function apiRequestPaginated<T>(
     total: successBody.meta.total,
   };
 }
+
+export async function apiRequestText(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<string> {
+  const baseUrl = env.apiUrl.replace(/\/$/, "");
+
+  if (!baseUrl) {
+    throw new ApiError(
+      0,
+      "CONFIG_ERROR",
+      "API URL is not configured. Set EXPO_PUBLIC_API_URL in your .env file.",
+    );
+  }
+
+  const headers: Record<string, string> = {
+    Accept: "text/html",
+    ...(options.accessToken
+      ? { Authorization: `Bearer ${options.accessToken}` }
+      : {}),
+  };
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers,
+      body: undefined,
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "NETWORK_ERROR",
+      "Unable to connect. Check your internet connection and API URL.",
+    );
+  }
+
+  if (!response.ok) {
+    let errorBody: ApiErrorBody | null = null;
+
+    try {
+      errorBody = (await response.json()) as ApiErrorBody;
+    } catch {
+      // The fallback below intentionally handles non-JSON server responses.
+    }
+
+    throw new ApiError(
+      response.status,
+      errorBody?.error?.code ?? "REQUEST_FAILED",
+      errorBody?.error?.message ?? "Unable to load the receipt.",
+      errorBody?.error?.details,
+    );
+  }
+
+  return response.text();
+}
