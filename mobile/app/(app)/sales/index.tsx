@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { listSales } from "@/api/sales";
 import { ApiError, getUserFacingErrorMessage } from "@/api/errors";
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -23,6 +22,7 @@ import {
   formatSalePaymentStatus,
   type SaleListItem,
 } from "@/sales";
+import { readRepository, useOffline } from "@/offline";
 
 const PAGE_SIZE = 20;
 
@@ -30,6 +30,7 @@ export default function SalesListScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [items, setItems] = useState<SaleListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -63,7 +64,9 @@ export default function SalesListScreen() {
       setErrorMessage(undefined);
 
       try {
-        const response = await listSales(accessToken, businessId, {
+        const scope = getScope();
+        if (!scope) return;
+        const response = await readRepository.listSales(scope, networkStatus, {
           page: options.pageToLoad,
           limit: PAGE_SIZE,
         });
@@ -86,7 +89,7 @@ export default function SalesListScreen() {
         setIsLoadingMore(false);
       }
     },
-    [accessToken, businessId, router],
+    [accessToken, businessId, getScope, networkStatus, router],
   );
 
   useEffect(() => {

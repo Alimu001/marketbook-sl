@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { listInventory } from "@/api/inventory";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -23,6 +22,7 @@ import {
   type InventoryListItem,
 } from "@/inventory";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
+import { readRepository, useOffline } from "@/offline";
 
 const PAGE_SIZE = 20;
 
@@ -53,6 +53,7 @@ export default function InventoryListScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [items, setItems] = useState<InventoryListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -89,7 +90,9 @@ export default function InventoryListScreen() {
       setErrorMessage(undefined);
 
       try {
-        const response = await listInventory(accessToken, businessId, {
+        const scope = getScope();
+        if (!scope) return;
+        const response = await readRepository.listInventory(scope, networkStatus, {
           page: options.pageToLoad,
           limit: PAGE_SIZE,
           search: debouncedSearch || undefined,
@@ -114,7 +117,7 @@ export default function InventoryListScreen() {
         setIsLoadingMore(false);
       }
     },
-    [accessToken, businessId, debouncedSearch, filter, router],
+    [accessToken, businessId, debouncedSearch, filter, getScope, networkStatus, router],
   );
 
   useEffect(() => {

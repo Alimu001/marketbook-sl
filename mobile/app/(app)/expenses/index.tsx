@@ -12,10 +12,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  listExpenseCategories,
-  listExpenses,
-} from "@/api/expenses";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -37,6 +33,7 @@ import {
 import { formatMoneyDisplay } from "@/products/money";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
 import { PAYMENT_METHODS, formatPaymentMethod, type PaymentMethod } from "@/sales";
+import { expensesRepository, useOffline } from "@/offline";
 
 const PAGE_SIZE = 20;
 
@@ -63,6 +60,7 @@ export default function ExpenseListScreen() {
   const { created } = useLocalSearchParams<{ created?: string }>();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [expenses, setExpenses] = useState<ExpenseListItem[]>([]);
   const [categories, setCategories] = useState<ExpenseCategorySummary[]>([]);
@@ -96,12 +94,14 @@ export default function ExpenseListScreen() {
     }
 
     try {
-      const response = await listExpenseCategories(accessToken, businessId);
+      const scope = getScope();
+      if (!scope) return;
+      const response = await expensesRepository.listExpenseCategories(scope, networkStatus);
       setCategories(response);
     } catch {
       // Categories are optional for list rendering.
     }
-  }, [accessToken, businessId]);
+  }, [accessToken, businessId, getScope, networkStatus]);
 
   const loadExpenses = useCallback(
     async (options: {
@@ -124,7 +124,9 @@ export default function ExpenseListScreen() {
       setErrorMessage(undefined);
 
       try {
-        const response = await listExpenses(accessToken, businessId, {
+        const scope = getScope();
+        if (!scope) return;
+        const response = await expensesRepository.listExpenses(scope, networkStatus, {
           page: options.pageToLoad,
           limit: PAGE_SIZE,
           search: debouncedSearch || undefined,
@@ -160,6 +162,8 @@ export default function ExpenseListScreen() {
       categoryFilter,
       debouncedSearch,
       fromDate,
+      getScope,
+      networkStatus,
       paymentFilter,
       router,
       toDate,

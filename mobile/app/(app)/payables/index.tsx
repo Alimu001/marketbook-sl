@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { listBusinessPayables } from "@/api/payables";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -26,6 +25,7 @@ import {
 import { appHref, payableDetailHref } from "@/navigation/hrefs";
 import { formatMoneyDisplay } from "@/products/money";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
+import { readRepository, useOffline } from "@/offline";
 
 const PAGE_SIZE = 20;
 
@@ -33,6 +33,7 @@ export default function PayablesListScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [payables, setPayables] = useState<BusinessPayableListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -69,7 +70,9 @@ export default function PayablesListScreen() {
       setErrorMessage(undefined);
 
       try {
-        const response = await listBusinessPayables(accessToken, businessId, {
+        const scope = getScope();
+        if (!scope) return;
+        const response = await readRepository.listPayables(scope, networkStatus, {
           page: options.pageToLoad,
           limit: PAGE_SIZE,
           search: debouncedSearch || undefined,
@@ -94,7 +97,7 @@ export default function PayablesListScreen() {
         setIsLoadingMore(false);
       }
     },
-    [accessToken, businessId, debouncedSearch, router, statusFilter],
+    [accessToken, businessId, debouncedSearch, getScope, networkStatus, router, statusFilter],
   );
 
   useEffect(() => {

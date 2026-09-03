@@ -4,7 +4,7 @@ import {
   listExpenses as apiListExpenses,
 } from "@/api/expenses";
 import { businessScopedPath } from "@/api/businesses";
-import type { PaginatedResponse } from "@/api/errors";
+import { ApiError, type PaginatedResponse } from "@/api/errors";
 import type {
   CreateExpensePayload,
   ExpenseCategorySummary,
@@ -33,13 +33,18 @@ export async function listExpenseCategories(
   networkStatus: NetworkStatus,
 ): Promise<ExpenseCategorySummary[]> {
   if (isOnlineStatus(networkStatus)) {
-    const categories = await apiListExpenseCategories(
-      scope.accessToken,
-      scope.businessId,
-      { isActive: true },
-    );
+    let categories: ExpenseCategorySummary[] | null = null;
+    try {
+      categories = await apiListExpenseCategories(
+        scope.accessToken,
+        scope.businessId,
+        { isActive: true },
+      );
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 0)) throw error;
+    }
 
-    for (const category of categories) {
+    for (const category of categories ?? []) {
       await upsertCacheRecord({
         userId: scope.userId,
         businessId: scope.businessId,
@@ -49,7 +54,7 @@ export async function listExpenseCategories(
       });
     }
 
-    return categories;
+    if (categories) return categories;
   }
 
   const cached = await listCacheRecords<ExpenseCategorySummary>(
@@ -67,13 +72,14 @@ export async function listExpenses(
   params: ListExpensesParams = {},
 ): Promise<PaginatedResponse<ExpenseListItem[]>> {
   if (isOnlineStatus(networkStatus)) {
-    const response = await apiListExpenses(
-      scope.accessToken,
-      scope.businessId,
-      params,
-    );
+    let response: PaginatedResponse<ExpenseListItem[]> | null = null;
+    try {
+      response = await apiListExpenses(scope.accessToken, scope.businessId, params);
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 0)) throw error;
+    }
 
-    for (const expense of response.items) {
+    for (const expense of response?.items ?? []) {
       await upsertCacheRecord({
         userId: scope.userId,
         businessId: scope.businessId,
@@ -94,14 +100,16 @@ export async function listExpenses(
       scope.userId,
       scope.businessId,
       "expense",
-      response.items,
+      response?.items ?? [],
     );
 
-    return {
-      ...response,
-      items: merged,
-      total: merged.length,
-    };
+    if (response) {
+      return {
+        ...response,
+        items: merged,
+        total: merged.length,
+      };
+    }
   }
 
   const cached = await listCacheRecords<ExpenseListItem>(

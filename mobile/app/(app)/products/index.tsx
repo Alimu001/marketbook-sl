@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { listProducts } from "@/api/products";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -28,6 +27,7 @@ import {
   type ProductFilter,
 } from "@/products";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
+import { readRepository, useOffline } from "@/offline";
 
 const PAGE_SIZE = 20;
 
@@ -54,6 +54,7 @@ export default function ProductListScreen() {
   const { created } = useLocalSearchParams<{ created?: string }>();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(1);
@@ -95,7 +96,9 @@ export default function ProductListScreen() {
       setErrorMessage(undefined);
 
       try {
-        const response = await listProducts(accessToken, businessId, {
+        const scope = getScope();
+        if (!scope) return;
+        const response = await readRepository.listProducts(scope, networkStatus, {
           page: options.pageToLoad,
           limit: PAGE_SIZE,
           search: debouncedSearch || undefined,
@@ -122,7 +125,7 @@ export default function ProductListScreen() {
         setIsLoadingMore(false);
       }
     },
-    [accessToken, businessId, debouncedSearch, filter, router],
+    [accessToken, businessId, debouncedSearch, filter, getScope, networkStatus, router],
   );
 
   useEffect(() => {

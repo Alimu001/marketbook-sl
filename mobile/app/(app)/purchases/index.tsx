@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { listPurchases } from "@/api/purchases";
 import { ApiError, getUserFacingErrorMessage } from "@/api/errors";
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -22,6 +21,7 @@ import {
   formatSupplierDateTime,
   type PurchaseListItem,
 } from "@/suppliers";
+import { readRepository, useOffline } from "@/offline";
 
 const PAGE_SIZE = 20;
 
@@ -29,6 +29,7 @@ export default function PurchasesListScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [items, setItems] = useState<PurchaseListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -62,7 +63,9 @@ export default function PurchasesListScreen() {
       setErrorMessage(undefined);
 
       try {
-        const response = await listPurchases(accessToken, businessId, {
+        const scope = getScope();
+        if (!scope) return;
+        const response = await readRepository.listPurchases(scope, networkStatus, {
           page: options.pageToLoad,
           limit: PAGE_SIZE,
         });
@@ -85,7 +88,7 @@ export default function PurchasesListScreen() {
         setIsLoadingMore(false);
       }
     },
-    [accessToken, businessId, router],
+    [accessToken, businessId, getScope, networkStatus, router],
   );
 
   useEffect(() => {

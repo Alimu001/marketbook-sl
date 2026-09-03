@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { listSuppliers } from "@/api/suppliers";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -28,6 +27,7 @@ import {
 } from "@/navigation/hrefs";
 import { formatMoneyDisplay } from "@/products/money";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
+import { suppliersRepository, useOffline } from "@/offline";
 
 const PAGE_SIZE = 20;
 
@@ -54,6 +54,7 @@ export default function SupplierListScreen() {
   const { created } = useLocalSearchParams<{ created?: string }>();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [suppliers, setSuppliers] = useState<SupplierSummary[]>([]);
   const [page, setPage] = useState(1);
@@ -95,7 +96,9 @@ export default function SupplierListScreen() {
       setErrorMessage(undefined);
 
       try {
-        const response = await listSuppliers(accessToken, businessId, {
+        const scope = getScope();
+        if (!scope) return;
+        const response = await suppliersRepository.listSuppliers(scope, networkStatus, {
           page: options.pageToLoad,
           limit: PAGE_SIZE,
           search: debouncedSearch || undefined,
@@ -122,7 +125,7 @@ export default function SupplierListScreen() {
         setIsLoadingMore(false);
       }
     },
-    [accessToken, businessId, debouncedSearch, filter, router],
+    [accessToken, businessId, debouncedSearch, filter, getScope, networkStatus, router],
   );
 
   useEffect(() => {

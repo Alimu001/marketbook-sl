@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  listPayments,
   type PaymentListItem,
   type PaymentProvider,
   type PaymentStatus,
@@ -39,6 +38,7 @@ import {
   formatSaleDateTime,
   isVerifiedProviderPayment,
 } from "@/sales";
+import { readRepository, useOffline } from "@/offline";
 
 const PAGE_SIZE = 20;
 
@@ -58,6 +58,7 @@ export default function PaymentsHistoryScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
+  const { getScope, networkStatus } = useOffline();
 
   const [payments, setPayments] = useState<PaymentListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -95,7 +96,9 @@ export default function PaymentsHistoryScreen() {
       setErrorMessage(undefined);
 
       try {
-        const response = await listPayments(accessToken, businessId, {
+        const scope = getScope();
+        if (!scope) return;
+        const response = await readRepository.listPayments(scope, networkStatus, {
           page: options.pageToLoad,
           limit: PAGE_SIZE,
           status:
@@ -126,7 +129,7 @@ export default function PaymentsHistoryScreen() {
         setIsLoadingMore(false);
       }
     },
-    [accessToken, businessId, providerFilter, router, statusFilter],
+    [accessToken, businessId, getScope, networkStatus, providerFilter, router, statusFilter],
   );
 
   useEffect(() => {

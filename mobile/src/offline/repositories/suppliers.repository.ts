@@ -3,7 +3,7 @@ import {
   listSuppliers as apiListSuppliers,
 } from "@/api/suppliers";
 import { businessScopedPath } from "@/api/businesses";
-import type { PaginatedResponse } from "@/api/errors";
+import { ApiError, type PaginatedResponse } from "@/api/errors";
 import type {
   CreateSupplierPayload,
   ListSuppliersParams,
@@ -32,11 +32,14 @@ export async function listSuppliers(
   params: ListSuppliersParams = {},
 ): Promise<PaginatedResponse<SupplierSummary[]>> {
   if (isOnlineStatus(networkStatus)) {
-    const response = await apiListSuppliers(
-      scope.accessToken,
-      scope.businessId,
-      params,
-    );
+    let response: PaginatedResponse<SupplierSummary[]> | null = null;
+    try {
+      response = await apiListSuppliers(scope.accessToken, scope.businessId, params);
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 0)) throw error;
+    }
+
+    if (response) {
 
     for (const supplier of response.items) {
       await upsertCacheRecord({
@@ -62,11 +65,12 @@ export async function listSuppliers(
       response.items,
     );
 
-    return {
-      ...response,
-      items: merged,
-      total: merged.length,
-    };
+      return {
+        ...response,
+        items: merged,
+        total: merged.length,
+      };
+    }
   }
 
   const cached = await listCacheRecords<SupplierSummary>(

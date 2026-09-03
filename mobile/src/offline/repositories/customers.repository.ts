@@ -1,7 +1,7 @@
 import { listCustomers as apiListCustomers, createCustomer as apiCreateCustomer } from "@/api/customers";
 import { businessScopedPath } from "@/api/businesses";
 import type { CreateCustomerPayload, CustomerDetail, CustomerSummary, ListCustomersParams } from "@/customers/types";
-import type { PaginatedResponse } from "@/api/errors";
+import { ApiError, type PaginatedResponse } from "@/api/errors";
 import {
   listCacheRecords,
   pruneCacheHistory,
@@ -24,13 +24,14 @@ export async function listCustomers(
   params: ListCustomersParams = {},
 ): Promise<PaginatedResponse<CustomerSummary[]>> {
   if (isOnlineStatus(networkStatus)) {
-    const response = await apiListCustomers(
-      scope.accessToken,
-      scope.businessId,
-      params,
-    );
+    let response: PaginatedResponse<CustomerSummary[]> | null = null;
+    try {
+      response = await apiListCustomers(scope.accessToken, scope.businessId, params);
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 0)) throw error;
+    }
 
-    for (const customer of response.items) {
+    for (const customer of response?.items ?? []) {
       await upsertCacheRecord({
         userId: scope.userId,
         businessId: scope.businessId,
@@ -51,14 +52,16 @@ export async function listCustomers(
       scope.userId,
       scope.businessId,
       "customer",
-      response.items,
+      response?.items ?? [],
     );
 
-    return {
-      ...response,
-      items: merged,
-      total: merged.length,
-    };
+    if (response) {
+      return {
+        ...response,
+        items: merged,
+        total: merged.length,
+      };
+    }
   }
 
   const cached = await listCacheRecords<CustomerSummary>(
