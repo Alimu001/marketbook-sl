@@ -166,6 +166,15 @@ export default function SaleReceiptScreen() {
 
         <Text style={styles.brand}>MarketBook SL</Text>
         <Text style={styles.businessName}>{receipt.business.name}</Text>
+        {receipt.business.address ? (
+          <Text style={styles.muted}>{receipt.business.address}</Text>
+        ) : null}
+        {receipt.business.phone ? (
+          <Text style={styles.muted}>{receipt.business.phone}</Text>
+        ) : null}
+        {receipt.business.email ? (
+          <Text style={styles.muted}>{receipt.business.email}</Text>
+        ) : null}
         <Text style={styles.receiptNumber}>{receipt.receiptNumber}</Text>
         <Text style={styles.muted}>{formatSaleDateTime(receipt.soldAt)}</Text>
 
@@ -215,6 +224,10 @@ export default function SaleReceiptScreen() {
         <Text style={styles.meta}>
           {formatSalePaymentStatus(receipt.paymentStatus)} · {formatPaymentMethod(receipt.paymentMethod)}
         </Text>
+
+        {receipt.footer ? (
+          <Text style={styles.footerText}>{receipt.footer}</Text>
+        ) : null}
 
         {errorMessage ? <FormMessage message={errorMessage} /> : null}
 
@@ -267,4 +280,11 @@ const styles = StyleSheet.create({
   actions: { marginTop: 20, gap: 10 },
   statusBanner: { marginTop: 8, padding: 12, borderRadius: 8, backgroundColor: "#FEE2E2" },
   statusBannerText: { textAlign: "center", color: "#B91C1C", fontWeight: "800" },
+  footerText: {
+    marginTop: 16,
+    textAlign: "center",
+    color: "#475569",
+    fontSize: 14,
+    fontStyle: "italic",
+  },
 });

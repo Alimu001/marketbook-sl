@@ -141,10 +141,14 @@ model User {
 }
 
 model Business {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  receiptFooter String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   members  BusinessMember[]
   products Product[]

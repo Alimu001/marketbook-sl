@@ -10,7 +10,14 @@ export async function getSaleReceipt(
   const [business, sale] = await Promise.all([
     prisma.business.findUnique({
       where: { id: businessId },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        receiptFooter: true,
+      },
     }),
     getSaleDetail(businessId, saleId),
   ]);
@@ -22,7 +29,13 @@ export async function getSaleReceipt(
   return {
     version: 1,
     currency: "SLE",
-    business,
+    business: {
+      id: business.id,
+      name: business.name,
+      email: business.email,
+      phone: business.phone,
+      address: business.address,
+    },
     receiptNumber: sale.receiptNumber,
     saleId: sale.id,
     status: sale.status,
@@ -47,6 +60,7 @@ export async function getSaleReceipt(
     outstandingAmount: sale.outstandingAmount,
     refundedAmount: sale.refundedAmount,
     notes: sale.notes,
+    footer: business.receiptFooter,
     soldAt: sale.createdAt,
   };
 }

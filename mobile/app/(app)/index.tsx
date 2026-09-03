@@ -26,6 +26,7 @@ import {
 import {
   appHref,
   businessCreateHref,
+  businessSettingsHref,
   businessSelectHref,
   customersHref,
   debtsHref,
@@ -198,6 +199,13 @@ export default function AppHomeScreen() {
         <Text style={styles.roleLine}>
           Role: {formatBusinessRole(currentBusiness.role)}
         </Text>
+        {currentBusiness.role === "owner" || currentBusiness.role === "admin" ? (
+          <FormButton
+            label="Business & Receipt Settings"
+            variant="secondary"
+            onPress={() => router.push(businessSettingsHref)}
+          />
+        ) : null}
 
         <ReportPeriodSelector
           preset={preset}

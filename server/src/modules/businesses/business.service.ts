@@ -14,11 +14,16 @@ import type { Business, BusinessMember } from "../../../generated/prisma/client.
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../middleware/errorHandler.js";
 import { DEFAULT_EXPENSE_CATEGORIES } from "../expenses/defaultCategories.js";
+import { DEFAULT_RECEIPT_FOOTER } from "../../config/constants.js";
 
 function toBusinessDetails(business: Business): BusinessDetails {
   return {
     id: business.id,
     name: business.name,
+    email: business.email,
+    phone: business.phone,
+    address: business.address,
+    receiptFooter: business.receiptFooter,
     createdAt: business.createdAt.toISOString(),
     updatedAt: business.updatedAt.toISOString(),
   };
@@ -49,9 +54,17 @@ export async function createBusiness(
   input: CreateBusinessInput,
 ): Promise<CreateBusinessResponse> {
   const result = await prisma.$transaction(async (tx) => {
+    const owner = await tx.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true },
+    });
     const business = await tx.business.create({
       data: {
         name: input.name,
+        email: owner.email,
+        ...(input.phone !== undefined ? { phone: input.phone } : {}),
+        ...(input.address !== undefined ? { address: input.address } : {}),
+        receiptFooter: DEFAULT_RECEIPT_FOOTER,
       },
     });
 
@@ -111,7 +124,13 @@ export async function updateBusiness(
   const business = await prisma.business.update({
     where: { id: businessId },
     data: {
-      name: input.name,
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.email !== undefined ? { email: input.email } : {}),
+      ...(input.phone !== undefined ? { phone: input.phone } : {}),
+      ...(input.address !== undefined ? { address: input.address } : {}),
+      ...(input.receiptFooter !== undefined
+        ? { receiptFooter: input.receiptFooter }
+        : {}),
     },
   });
 

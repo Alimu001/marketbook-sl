@@ -163,6 +163,87 @@ describe("Business API", () => {
       expect(response.body.data.name).toBe("Updated Name");
     });
 
+    it("allows owner to update receipt profile details", async () => {
+      const owner = await createTestUser(app, "profile-owner");
+      const created = await createBusiness(
+        app,
+        owner.accessToken,
+        "Profile Business",
+      );
+      const businessId = created.body.data.business.id;
+
+      const response = await request(app)
+        .patch(`/api/v1/businesses/${businessId}`)
+        .set(authHeader(owner.accessToken))
+        .send({
+          phone: "+232 76 123 456",
+          address: "10 Siaka Stevens Street, Freetown",
+          receiptFooter: "Thank you for shopping with us.",
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toMatchObject({
+        phone: "+232 76 123 456",
+        address: "10 Siaka Stevens Street, Freetown",
+        receiptFooter: "Thank you for shopping with us.",
+      });
+    });
+
+    it("allows blank receipt profile values to clear saved details", async () => {
+      const owner = await createTestUser(app, "profile-clear");
+      const created = await createBusiness(
+        app,
+        owner.accessToken,
+        "Clear Profile Business",
+      );
+      const businessId = created.body.data.business.id;
+
+      await prisma.business.update({
+        where: { id: businessId },
+        data: {
+          phone: "+232 30 000 000",
+          address: "Freetown",
+          receiptFooter: "Come again",
+        },
+      });
+
+      const response = await request(app)
+        .patch(`/api/v1/businesses/${businessId}`)
+        .set(authHeader(owner.accessToken))
+        .send({ phone: "   ", address: "", receiptFooter: "  " });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toMatchObject({
+        phone: null,
+        address: null,
+        receiptFooter: null,
+      });
+    });
+
+    it("rejects receipt profile values beyond their limits", async () => {
+      const owner = await createTestUser(app, "profile-validation");
+      const created = await createBusiness(
+        app,
+        owner.accessToken,
+        "Validation Business",
+      );
+      const businessId = created.body.data.business.id;
+
+      for (const payload of [
+        { phone: "1".repeat(31) },
+        { address: "a".repeat(301) },
+        { receiptFooter: "f".repeat(201) },
+      ]) {
+        const response = await request(app)
+          .patch(`/api/v1/businesses/${businessId}`)
+          .set(authHeader(owner.accessToken))
+          .send(payload);
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.code).toBe("VALIDATION_ERROR");
+      }
+    });
+
     it("allows admin to update business information", async () => {
       const owner = await createTestUser(app, "owner");
       const admin = await createMemberUser(app, "admin");

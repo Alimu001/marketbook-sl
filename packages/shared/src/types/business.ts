@@ -10,6 +10,10 @@ export interface BusinessSummary {
 export interface BusinessDetails {
   id: string;
   name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  receiptFooter: string | null;
   createdAt: string;
   updatedAt: string;
 }

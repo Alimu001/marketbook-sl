@@ -19,7 +19,9 @@ export default function CreateBusinessScreen() {
   const { createBusiness, businesses } = useBusiness();
 
   const [name, setName] = useState("");
-  const [fieldError, setFieldError] = useState<string | undefined>();
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -37,20 +39,20 @@ export default function CreateBusinessScreen() {
       return;
     }
 
-    setFieldError(undefined);
+    setFieldErrors({});
     setFormError(undefined);
 
-    const parsed = createBusinessFormSchema.safeParse({ name });
+    const parsed = createBusinessFormSchema.safeParse({ name, phone, address });
 
     if (!parsed.success) {
-      setFieldError(parsed.error.issues[0]?.message ?? "Business name is required");
+      setFieldErrors(Object.fromEntries(parsed.error.issues.map((issue) => [String(issue.path[0]), issue.message])));
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      await createBusiness(parsed.data.name);
+      await createBusiness(parsed.data);
       router.replace(appHref);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -86,8 +88,11 @@ export default function CreateBusinessScreen() {
         onChangeText={setName}
         autoCapitalize="words"
         placeholder="Alimu Trading Enterprise"
-        error={fieldError}
+        error={fieldErrors.name}
       />
+
+      <FormField label="Business Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+232 76 000 000" error={fieldErrors.phone} />
+      <FormField label="Business Address" value={address} onChangeText={setAddress} multiline placeholder="Street, town or district" error={fieldErrors.address} />
 
       <FormButton
         label="Create Business"

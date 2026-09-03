@@ -106,8 +106,47 @@ describe("Sale receipts", () => {
     expect(response.headers["content-disposition"]).toContain("inline");
     expect(response.headers["cache-control"]).toBe("private, no-store");
     expect(response.text).toContain("<!doctype html>");
+    expect(response.text).toContain('class="receipt-number"');
+    expect(response.text).toContain('class="item-detail"');
+    expect(response.text).toContain('colspan="2"');
     expect(response.text).toContain("50kg Cement &lt;Premium&gt;");
     expect(response.text).not.toContain("50kg Cement <Premium>");
+  });
+
+  it("includes the business receipt profile in JSON and safely escaped HTML", async () => {
+    const { owner, businessId } = await setupOwnerBusiness(app, "receipt-profile");
+    await request(app)
+      .patch(`/api/v1/businesses/${businessId}`)
+      .set(authHeader(owner.accessToken))
+      .send({
+        phone: "+232 76 123 456",
+        address: "10 Main Street <Freetown>",
+        receiptFooter: "Thank you & come again <soon>",
+      })
+      .expect(200);
+    const { saleId } = await createCompletedSale(owner.accessToken, businessId);
+
+    const jsonResponse = await request(app)
+      .get(receiptPath(businessId, saleId))
+      .set(authHeader(owner.accessToken));
+
+    expect(jsonResponse.status).toBe(200);
+    expect(jsonResponse.body.data).toMatchObject({
+      business: {
+        phone: "+232 76 123 456",
+        address: "10 Main Street <Freetown>",
+      },
+      footer: "Thank you & come again <soon>",
+    });
+
+    const htmlResponse = await request(app)
+      .get(receiptPath(businessId, saleId, true))
+      .set(authHeader(owner.accessToken));
+
+    expect(htmlResponse.status).toBe(200);
+    expect(htmlResponse.text).toContain("10 Main Street &lt;Freetown&gt;");
+    expect(htmlResponse.text).toContain("Thank you &amp; come again &lt;soon&gt;");
+    expect(htmlResponse.text).not.toContain("Thank you & come again <soon>");
   });
 
   it("preserves product snapshots after the catalog product changes", async () => {

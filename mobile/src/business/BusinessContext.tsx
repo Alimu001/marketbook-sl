@@ -29,7 +29,7 @@ interface BusinessContextValue {
   isInitialized: boolean;
   loadError: string | null;
   loadBusinesses: () => Promise<void>;
-  createBusiness: (name: string) => Promise<BusinessSummary>;
+  createBusiness: (input: { name: string; phone: string; address: string }) => Promise<BusinessSummary>;
   selectBusiness: (business: BusinessSummary) => Promise<void>;
   clearBusinessState: () => Promise<void>;
 }
@@ -142,12 +142,12 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   }, [accessToken, applyLoadedBusinesses, clearBusinessState]);
 
   const createBusiness = useCallback(
-    async (name: string) => {
+    async (input: { name: string; phone: string; address: string }) => {
       if (!accessToken) {
         throw new ApiError(401, "UNAUTHORIZED", "Your session has expired.");
       }
 
-      const response = await createBusinessRequest(accessToken, { name });
+      const response = await createBusinessRequest(accessToken, input);
       const summary = toBusinessSummary(response);
 
       setBusinesses((previous) => {

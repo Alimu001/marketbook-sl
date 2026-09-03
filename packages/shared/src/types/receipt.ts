@@ -20,6 +20,9 @@ export interface SaleReceiptResponse {
   business: {
     id: string;
     name: string;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
   };
   receiptNumber: string;
   saleId: string;
@@ -37,5 +40,6 @@ export interface SaleReceiptResponse {
   outstandingAmount: string;
   refundedAmount: string;
   notes: string | null;
+  footer: string | null;
   soldAt: string;
 }

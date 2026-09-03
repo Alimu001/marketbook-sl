@@ -12,6 +12,10 @@ export interface BusinessSummary {
 export interface BusinessDetails {
   id: string;
   name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  receiptFooter: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,7 +50,7 @@ export function listBusinesses(
 
 export function createBusiness(
   accessToken: string,
-  input: { name: string },
+  input: { name: string; phone: string; address: string },
 ): Promise<CreateBusinessResponse> {
   return apiRequest<CreateBusinessResponse>("/businesses", {
     method: "POST",
@@ -62,5 +66,23 @@ export function getBusiness(
   return apiRequest<BusinessDetails>(businessScopedPath(businessId), {
     method: "GET",
     accessToken,
+  });
+}
+
+export function updateBusiness(
+  accessToken: string,
+  businessId: string,
+  input: {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
+    receiptFooter: string | null;
+  },
+): Promise<BusinessDetails> {
+  return apiRequest<BusinessDetails>(businessScopedPath(businessId), {
+    method: "PATCH",
+    accessToken,
+    body: input,
   });
 }
