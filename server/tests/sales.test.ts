@@ -47,11 +47,13 @@ async function createSale(
   accessToken: string,
   businessId: string,
   body: Record<string, unknown>,
+  idempotencyKey?: string,
 ) {
-  return request(app)
+  const pendingRequest = request(app)
     .post(salesPath(businessId))
-    .set(authHeader(accessToken))
-    .send(body);
+    .set(authHeader(accessToken));
+  if (idempotencyKey) pendingRequest.set("Idempotency-Key", idempotencyKey);
+  return pendingRequest.send(body);
 }
 
 async function prepareProductWithStock(
@@ -174,6 +176,48 @@ describe("Sales API", () => {
 
       expect(response.status).toBe(403);
       expect(response.body.error.code).toBe("FORBIDDEN");
+    });
+  });
+
+  describe("Offline sale idempotency", () => {
+    it("returns the same sale and decrements stock only once on replay", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "sale-offline-replay");
+      const productId = await prepareProductWithStock(owner.accessToken, businessId, {}, "10");
+      const body = {
+        items: [{ productId, quantity: "2" }],
+        paymentMethod: "CASH",
+      };
+      const key = `offline-sale-${crypto.randomUUID()}`;
+
+      const [first, replay] = await Promise.all([
+        createSale(owner.accessToken, businessId, body, key),
+        createSale(owner.accessToken, businessId, body, key),
+      ]);
+
+      expect(first.status).toBe(201);
+      expect(replay.status).toBe(201);
+      expect(replay.body.data.sale.id).toBe(first.body.data.sale.id);
+      const balance = await prisma.inventoryBalance.findUnique({ where: { productId } });
+      expect(balance?.quantity.toString()).toBe("8");
+      expect(await prisma.sale.count({ where: { businessId } })).toBe(1);
+    });
+
+    it("rejects reuse of a sale key with a different payload", async () => {
+      const { owner, businessId } = await setupOwnerBusiness(app, "sale-offline-conflict");
+      const productId = await prepareProductWithStock(owner.accessToken, businessId);
+      const key = `offline-sale-${crypto.randomUUID()}`;
+
+      await createSale(owner.accessToken, businessId, {
+        items: [{ productId, quantity: "1" }],
+        paymentMethod: "CASH",
+      }, key);
+      const conflict = await createSale(owner.accessToken, businessId, {
+        items: [{ productId, quantity: "2" }],
+        paymentMethod: "CASH",
+      }, key);
+
+      expect(conflict.status).toBe(409);
+      expect(conflict.body.error.code).toBe("IDEMPOTENCY_CONFLICT");
     });
   });
 

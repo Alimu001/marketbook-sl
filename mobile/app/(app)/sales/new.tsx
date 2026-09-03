@@ -11,10 +11,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { createSale } from "@/api/sales";
 import { initiatePayment, listPaymentProviders } from "@/api/payments";
 import { getCustomerWallet } from "@/api/wallet";
-import { readRepository, useOffline } from "@/offline";
+import { isLocalId, readRepository, salesRepository, useOffline } from "@/offline";
 import { OfflineDataHint } from "@/components/OfflineIndicators";
 import {
   ApiError,
@@ -71,7 +70,7 @@ function quantityExceedsStock(quantity: string, stock: string): boolean {
 
 export default function NewSaleScreen() {
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const { currentBusiness } = useBusiness();
   const { getScope, networkStatus, isOnline, isOfflineData } = useOffline();
   const {
@@ -359,13 +358,6 @@ export default function NewSaleScreen() {
       return;
     }
 
-    if (!isOnline) {
-      setCheckoutError(
-        "Sales checkout requires internet connection in this version.",
-      );
-      return;
-    }
-
     if (cartItems.length === 0) {
       setCheckoutError("Add at least one item to the cart.");
       return;
@@ -420,6 +412,10 @@ export default function NewSaleScreen() {
     }
 
     if (isProviderCheckout) {
+      if (!isOnline) {
+        setCheckoutError("Digital payments require an internet connection.");
+        return;
+      }
       const phone = providerPhone.trim();
       if (phone.length < 7) {
         setCheckoutError("Enter a valid mobile money phone number.");
@@ -430,6 +426,16 @@ export default function NewSaleScreen() {
         setCheckoutError("Provider checkout requires the full balance to be paid now.");
         return;
       }
+    }
+
+    if (!isOnline && effectiveWalletAmount && compareMoney(effectiveWalletAmount, "0") === 1) {
+      setCheckoutError("Store credit cannot be used while offline.");
+      return;
+    }
+
+    if (!isOnline && selectedCustomer && isLocalId(selectedCustomer.id)) {
+      setCheckoutError("Sync this new customer before using them in an offline sale.");
+      return;
     }
 
     for (const item of cartItems) {
@@ -471,7 +477,9 @@ export default function NewSaleScreen() {
         return;
       }
 
-      const result = await createSale(accessToken, businessId, {
+      const scope = getScope();
+      if (!scope || !user || !total || !balanceDue) return;
+      const result = await salesRepository.createSale(scope, networkStatus, {
         items: cartItems.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -485,10 +493,29 @@ export default function NewSaleScreen() {
         ...(requiresPaymentMethod && manualPaymentMethod
           ? { paymentMethod: manualPaymentMethod }
           : {}),
+      }, {
+        totalAmount: total,
+        amountPaid: effectiveAmountPaid,
+        walletAmountUsed: effectiveWalletAmount ?? "0",
+        outstandingAmount: balanceDue,
+        paymentStatus: compareMoney(balanceDue, "0") === 1
+          ? compareMoney(effectiveAmountPaid, "0") === 1
+            ? "PARTIALLY_PAID"
+            : "UNPAID"
+          : "PAID",
+        customer: selectedCustomer
+          ? { id: selectedCustomer.id, name: selectedCustomer.name }
+          : null,
+        createdBy: { id: user.id, name: user.name, email: user.email },
+        itemCount: cartItems.length,
       });
 
       clearCart();
       clearSelectedCustomer();
+      if (result.pendingSync) {
+        router.replace("/(app)/sales");
+        return;
+      }
       router.replace({
         pathname: "/(app)/sales/[saleId]",
         params: {
@@ -818,7 +845,7 @@ export default function NewSaleScreen() {
         <FormButton
           label={
             !isOnline
-              ? "Checkout requires internet"
+              ? "Save Sale Offline"
               : isCheckingOut
               ? "Processing..."
               : providerCheckoutMode === "MOCK"
@@ -827,7 +854,7 @@ export default function NewSaleScreen() {
                   ? "Pay with Orange Money"
                   : "Complete Sale"
           }
-          disabled={isCheckingOut || cartItems.length === 0 || !isOnline}
+          disabled={isCheckingOut || cartItems.length === 0}
           onPress={() => void handleCheckout()}
         />
       </ScrollView>

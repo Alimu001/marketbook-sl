@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { ListSalesQuery } from "@marketbook/shared/validation";
 import { AppError } from "../../middleware/errorHandler.js";
 import { getRouteParam } from "../../lib/routeParams.js";
+import { getIdempotencyKeyFromRequest } from "../../lib/clientMutation.js";
 import * as salesService from "./sales.service.js";
 
 function getBusinessId(req: Request): string {
@@ -44,6 +45,7 @@ export async function createSale(
       getBusinessId(req),
       getUserId(req),
       req.body,
+      getIdempotencyKeyFromRequest(req.headers),
     );
     res.status(201).json({ data: result });
   } catch (error) {

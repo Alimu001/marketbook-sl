@@ -24,6 +24,7 @@ import {
 } from "../debts/debt.service.js";
 import { debitWallet, lockCustomerWallet } from "../wallet/wallet.service.js";
 import { getActiveReservedQuantity } from "../payments/reservation.service.js";
+import { executeIdempotentMutation } from "../../lib/clientMutation.js";
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -529,18 +530,31 @@ export async function createSale(
   businessId: string,
   createdByUserId: string,
   input: CreateSaleInput,
+  mutationId?: string,
 ): Promise<CreateSaleResponse> {
   if (input.items.length === 0) {
     throw new AppError(400, "At least one item is required", "EMPTY_SALE");
   }
 
-  const sale = await prisma.$transaction(async (tx) =>
-    finalizeSaleCheckoutInTransaction(tx, businessId, createdByUserId, input),
-  );
-
-  return {
-    sale: toSaleDetailResponse(sale),
-  };
+  return executeIdempotentMutation({
+    businessId,
+    userId: createdByUserId,
+    mutationId,
+    entityType: "SALE",
+    payload: input,
+    execute: async () => {
+      const sale = await prisma.$transaction(async (tx) =>
+        finalizeSaleCheckoutInTransaction(tx, businessId, createdByUserId, input),
+      );
+      return {
+        entityId: sale.id,
+        result: { sale: toSaleDetailResponse(sale) },
+      };
+    },
+    loadExisting: async (saleId) => ({
+      sale: await getSaleDetail(businessId, saleId),
+    }),
+  });
 }
 
 

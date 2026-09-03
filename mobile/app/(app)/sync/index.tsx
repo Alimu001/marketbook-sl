@@ -28,6 +28,8 @@ function formatOperation(item: SyncQueueItem): string {
       return "Create supplier";
     case "CREATE_EXPENSE":
       return "Create expense";
+    case "CREATE_SALE":
+      return "Create sale";
     default:
       return item.operationType;
   }
@@ -182,7 +184,7 @@ export default function SyncStatusScreen() {
                 <Text style={styles.errorText}>{item.lastError}</Text>
               ) : null}
 
-              {item.status === "FAILED" ? (
+              {item.status === "FAILED" || item.status === "CONFLICT" ? (
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => void handleRetry(item)}

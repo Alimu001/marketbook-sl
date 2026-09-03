@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import type { ClientMutationEntityType } from "../../generated/prisma/client.js";
-import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "./prisma.js";
 import { AppError } from "../middleware/errorHandler.js";
 
@@ -90,79 +89,49 @@ export async function executeIdempotentMutation<T>(
     return created.result;
   }
 
+  const mutationId = options.mutationId;
   const payloadHash = hashMutationPayload(options.payload);
   const mutationKey = {
     businessId: options.businessId,
-    mutationId: options.mutationId,
+    mutationId,
   };
 
-  const existing = await prisma.clientMutation.findUnique({
-    where: {
-      businessId_mutationId: mutationKey,
-    },
-  });
+  return prisma.$transaction(async (tx) => {
+    const lockKey = `${options.businessId}:${mutationId}`;
+    await tx.$queryRaw`
+      SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0)) IS NULL AS "locked"
+    `;
 
-  if (existing) {
-    const resultEntityId = validateExistingMutation(
-      existing,
-      options.userId,
-      payloadHash,
-    );
+    const existing = await tx.clientMutation.findUnique({
+      where: { businessId_mutationId: mutationKey },
+    });
 
-    if (resultEntityId) {
-      return options.loadExisting(resultEntityId);
-    }
-  } else {
-    try {
-      await prisma.clientMutation.create({
+    if (existing) {
+      const resultEntityId = validateExistingMutation(
+        existing,
+        options.userId,
+        payloadHash,
+      );
+      if (resultEntityId) return options.loadExisting(resultEntityId);
+    } else {
+      await tx.clientMutation.create({
         data: {
           businessId: options.businessId,
           userId: options.userId,
-          mutationId: options.mutationId,
+          mutationId,
           entityType: options.entityType,
           payloadHash,
         },
       });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
-        const raced = await prisma.clientMutation.findUnique({
-          where: {
-            businessId_mutationId: mutationKey,
-          },
-        });
-
-        if (!raced) {
-          throw error;
-        }
-
-        const resultEntityId = validateExistingMutation(
-          raced,
-          options.userId,
-          payloadHash,
-        );
-
-        if (resultEntityId) {
-          return options.loadExisting(resultEntityId);
-        }
-      } else {
-        throw error;
-      }
     }
-  }
 
-  const created = await options.execute();
+    const created = await options.execute();
 
-  await prisma.clientMutation.update({
-    where: {
-      businessId_mutationId: mutationKey,
-    },
-    data: {
-      resultEntityId: created.entityId,
-    },
+    await tx.clientMutation.update({
+      where: { businessId_mutationId: mutationKey },
+      data: { resultEntityId: created.entityId },
+    });
+
+    return created.result;
   });
-
-  return created.result;
 }

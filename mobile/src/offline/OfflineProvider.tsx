@@ -150,8 +150,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setBannerMessage("Back online — syncing changes");
 
     try {
-      await refreshReadCaches(scope);
       const result = await runSyncEngine(scope);
+      await refreshReadCaches(scope);
       await refreshPendingCount();
       await loadLastSyncedAt();
 

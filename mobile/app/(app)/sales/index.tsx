@@ -23,6 +23,8 @@ import {
   type SaleListItem,
 } from "@/sales";
 import { readRepository, useOffline } from "@/offline";
+import { PendingSyncBadge } from "@/components/OfflineIndicators";
+import { isLocalId } from "@/offline";
 
 const PAGE_SIZE = 20;
 
@@ -137,7 +139,9 @@ export default function SalesListScreen() {
             renderItem={({ item }) => (
               <Pressable
                 accessibilityRole="button"
-                onPress={() => router.push(saleDetailHref(item.id))}
+                onPress={() => {
+                  if (!isLocalId(item.id)) router.push(saleDetailHref(item.id));
+                }}
                 style={({ pressed }) => [
                   styles.row,
                   pressed && styles.rowPressed,
@@ -177,6 +181,7 @@ export default function SalesListScreen() {
                 <Text style={styles.dateText}>
                   {formatSaleDateTime(item.createdAt)}
                 </Text>
+                <PendingSyncBadge entityId={item.id} />
               </Pressable>
             )}
             ListFooterComponent={

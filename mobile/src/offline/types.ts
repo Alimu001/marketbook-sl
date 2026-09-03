@@ -10,7 +10,8 @@ export type SyncQueueStatus =
 export type SyncOperationType =
   | "CREATE_EXPENSE"
   | "CREATE_CUSTOMER"
-  | "CREATE_SUPPLIER";
+  | "CREATE_SUPPLIER"
+  | "CREATE_SALE";
 
 export type CacheEntityType =
   | "business"

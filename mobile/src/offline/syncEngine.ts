@@ -3,6 +3,7 @@ import { ApiError } from "@/api/errors";
 import type { CustomerDetail } from "@/customers/types";
 import type { ExpenseDetail } from "@/expenses/types";
 import type { SupplierDetail } from "@/suppliers/types";
+import type { SaleDetail, SaleListItem } from "@/sales/types";
 import {
   listCacheRecords,
   pruneCacheHistory,
@@ -34,7 +35,12 @@ function classifySyncError(error: unknown): SyncErrorClassification {
       return "NON_RETRYABLE";
     }
 
-    if (error.status === 409 && error.code === "IDEMPOTENCY_CONFLICT") {
+    if (
+      error.status === 409 &&
+      (error.code === "IDEMPOTENCY_CONFLICT" ||
+        error.code === "INSUFFICIENT_STOCK" ||
+        error.code === "PRODUCT_INACTIVE")
+    ) {
       return "CONFLICT";
     }
 
@@ -94,7 +100,7 @@ async function processQueueItem(
   });
 
   try {
-    let result: CustomerDetail | SupplierDetail | ExpenseDetail;
+    let result: CustomerDetail | SupplierDetail | ExpenseDetail | SaleDetail;
 
     if (item.operationType === "CREATE_CUSTOMER") {
       result = await apiRequest<CustomerDetail>(item.endpoint, {
@@ -142,7 +148,7 @@ async function processQueueItem(
         item.entityLocalId,
       );
       await refreshEntityCache(scope, "supplier", result, result.id);
-    } else {
+    } else if (item.operationType === "CREATE_EXPENSE") {
       result = await apiRequest<ExpenseDetail>(item.endpoint, {
         method: "POST",
         accessToken: scope.accessToken,
@@ -165,6 +171,49 @@ async function processQueueItem(
         item.entityLocalId,
       );
       await refreshEntityCache(scope, "expense", result, result.id);
+    } else {
+      const response = await apiRequest<{ sale: SaleDetail }>(item.endpoint, {
+        method: "POST",
+        accessToken: scope.accessToken,
+        body: item.payload,
+        headers: {
+          "Idempotency-Key": item.idempotencyKey,
+        },
+      });
+      result = response.sale;
+      const listItem: SaleListItem = {
+        id: result.id,
+        receiptNumber: result.receiptNumber,
+        totalAmount: result.totalAmount,
+        amountPaid: result.amountPaid,
+        walletAmountUsed: result.walletAmountUsed,
+        outstandingAmount: result.outstandingAmount,
+        refundedAmount: result.refundedAmount,
+        paymentStatus: result.paymentStatus,
+        paymentMethod: result.paymentMethod,
+        paymentSource: result.paymentSource,
+        paymentProvider: result.paymentProvider,
+        providerReference: result.providerReference,
+        status: result.status,
+        customer: result.customer,
+        createdBy: result.createdBy,
+        itemCount: result.items.length,
+        createdAt: result.createdAt,
+      };
+      await saveLocalIdMapping({
+        localId: item.entityLocalId,
+        serverId: result.id,
+        entityType: "sale",
+        userId: scope.userId,
+        businessId: scope.businessId,
+      });
+      await removeCacheRecordByLocalId(
+        scope.userId,
+        scope.businessId,
+        "sale",
+        item.entityLocalId,
+      );
+      await refreshEntityCache(scope, "sale", listItem, result.id);
     }
 
     await updateSyncQueueItem(item.localId, {

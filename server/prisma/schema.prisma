@@ -79,6 +79,7 @@ enum ClientMutationEntityType {
   CUSTOMER
   SUPPLIER
   EXPENSE
+  SALE
 }
 
 enum SalePaymentStatus {

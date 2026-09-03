@@ -34,6 +34,9 @@ import {
 import { isOnlineStatus } from "../network";
 import type { NetworkStatus, SyncScope } from "../types";
 import { CACHE_HISTORY_LIMIT } from "../types";
+import { listSyncQueueItems } from "../syncQueue";
+import { addQuantities, subtractQuantities } from "@/inventory/quantity";
+import { mergePendingIntoList } from "../syncEngine";
 
 async function tryOnline<T>(request: () => Promise<T>): Promise<T | null> {
   try {
@@ -171,6 +174,38 @@ export async function listInventory(
 
   let items = cached.map((record) => record.data);
 
+  const queuedSales = (await listSyncQueueItems(scope.userId, scope.businessId))
+    .filter(
+      (entry) =>
+        entry.operationType === "CREATE_SALE" &&
+        (entry.status === "PENDING" || entry.status === "SYNCING"),
+    );
+  const reservedByProduct = new Map<string, string>();
+  for (const queuedSale of queuedSales) {
+    const saleItems = Array.isArray(queuedSale.payload.items)
+      ? queuedSale.payload.items
+      : [];
+    for (const rawItem of saleItems) {
+      if (
+        typeof rawItem === "object" &&
+        rawItem !== null &&
+        "productId" in rawItem &&
+        "quantity" in rawItem
+      ) {
+        const productId = String(rawItem.productId);
+        const quantity = String(rawItem.quantity);
+        const current = reservedByProduct.get(productId) ?? "0";
+        const reserved = addQuantities(current, quantity);
+        if (reserved) reservedByProduct.set(productId, reserved);
+      }
+    }
+  }
+  items = items.map((item) => ({
+    ...item,
+    quantity:
+      subtractQuantities(item.quantity, reservedByProduct.get(item.productId) ?? "0") ?? "0",
+  }));
+
   if (params.isActive !== undefined) {
     items = items.filter((item) => item.isActive === params.isActive);
   }
@@ -235,7 +270,13 @@ export async function listSales(
     const response = await tryOnline(() => apiListSales(scope.accessToken, scope.businessId, params));
     if (response) {
       await cacheList(scope, "sale", response.items);
-      return response;
+      const merged = await mergePendingIntoList(
+        scope.userId,
+        scope.businessId,
+        "sale",
+        response.items,
+      );
+      return { ...response, items: merged, total: response.total + (merged.length - response.items.length) };
     }
   }
   let items = (await listCacheRecords<SaleListItem>(scope.userId, scope.businessId, "sale")).map((entry) => entry.data);

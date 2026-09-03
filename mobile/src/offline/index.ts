@@ -8,6 +8,7 @@ export * as customersRepository from "./repositories/customers.repository";
 export * as suppliersRepository from "./repositories/suppliers.repository";
 export * as expensesRepository from "./repositories/expenses.repository";
 export * as readRepository from "./repositories/read.repository";
+export * as salesRepository from "./repositories/sales.repository";
 export {
   discardSyncQueueItem,
   retrySyncQueueItem,

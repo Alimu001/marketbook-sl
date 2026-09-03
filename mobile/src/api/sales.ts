@@ -67,11 +67,15 @@ export function createSale(
   accessToken: string,
   businessId: string,
   input: CreateSalePayload,
+  idempotencyKey?: string,
 ): Promise<{ sale: SaleDetail }> {
   return apiRequest<{ sale: SaleDetail }>(salesPath(businessId), {
     method: "POST",
     accessToken,
     body: input,
+    ...(idempotencyKey
+      ? { headers: { "Idempotency-Key": idempotencyKey } }
+      : {}),
   });
 }
 
