@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/business";
 import { businessSelectHref, loginHref } from "@/navigation/hrefs";
+import { AppSidePanel } from "@/components/AppSidePanel";
 
 export default function AppLayout() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -58,10 +59,16 @@ export default function AppLayout() {
     return <Redirect href={businessSelectHref} />;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <View style={styles.appShell}>
+      <Stack screenOptions={{ headerShown: false }} />
+      <AppSidePanel />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  appShell: { flex: 1 },
   loadingContainer: {
     flex: 1,
     alignItems: "center",

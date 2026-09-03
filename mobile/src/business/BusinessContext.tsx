@@ -18,8 +18,11 @@ import { ApiError, getUserFacingErrorMessage } from "@/api/errors";
 import { useAuth } from "@/auth";
 import {
   clearSelectedBusinessId,
+  clearBusinessesCache,
+  getBusinessesCache,
   getSelectedBusinessId,
   saveSelectedBusinessId,
+  saveBusinessesCache,
 } from "@/business/businessStorage";
 
 interface BusinessContextValue {
@@ -50,7 +53,7 @@ function toBusinessSummary(
 }
 
 export function BusinessProvider({ children }: { children: ReactNode }) {
-  const { accessToken, isAuthenticated } = useAuth();
+  const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
   const [businesses, setBusinesses] = useState<BusinessSummary[]>([]);
   const [currentBusiness, setCurrentBusiness] =
     useState<BusinessSummary | null>(null);
@@ -65,6 +68,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     setIsInitialized(false);
     setLoadError(null);
     await clearSelectedBusinessId();
+    await clearBusinessesCache();
   }, []);
 
   const selectBusiness = useCallback(async (business: BusinessSummary) => {
@@ -119,6 +123,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      await saveBusinessesCache(loadedBusinesses);
       await applyLoadedBusinesses(loadedBusinesses);
     } catch (error) {
       if (requestId !== loadRequestId.current) {
@@ -130,9 +135,19 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         throw error;
       }
 
-      setLoadError(getUserFacingErrorMessage(error));
-      setBusinesses([]);
-      setCurrentBusiness(null);
+      if (error instanceof ApiError && error.status === 0) {
+        const cachedBusinesses = await getBusinessesCache();
+        if (cachedBusinesses.length > 0) {
+          await applyLoadedBusinesses(cachedBusinesses);
+          setLoadError(null);
+        } else {
+          setLoadError("Connect to the internet once to prepare offline access.");
+        }
+      } else {
+        setLoadError(getUserFacingErrorMessage(error));
+        setBusinesses([]);
+        setCurrentBusiness(null);
+      }
     } finally {
       if (requestId === loadRequestId.current) {
         setIsLoading(false);
@@ -164,6 +179,12 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         return next;
       });
 
+      const cachedBusinesses = await getBusinessesCache();
+      await saveBusinessesCache([
+        ...cachedBusinesses.filter((business) => business.id !== summary.id),
+        summary,
+      ]);
+
       await selectBusiness(summary);
       return summary;
     },
@@ -171,6 +192,10 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
     if (!isAuthenticated || !accessToken) {
       void clearBusinessState();
       return;
@@ -179,7 +204,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     void loadBusinesses().catch(() => {
       // Route screens surface load failures when business data is required.
     });
-  }, [isAuthenticated, accessToken, loadBusinesses, clearBusinessState]);
+  }, [authLoading, isAuthenticated, accessToken, loadBusinesses, clearBusinessState]);
 
   const value = useMemo<BusinessContextValue>(
     () => ({

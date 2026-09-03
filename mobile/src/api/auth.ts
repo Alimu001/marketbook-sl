@@ -59,3 +59,14 @@ export function getCurrentUser(accessToken: string): Promise<PublicUser> {
     accessToken,
   });
 }
+
+export function updateCurrentUser(
+  accessToken: string,
+  input: { name: string; email: string },
+): Promise<PublicUser> {
+  return apiRequest<PublicUser>("/auth/me", {
+    method: "PATCH",
+    accessToken,
+    body: input,
+  });
+}

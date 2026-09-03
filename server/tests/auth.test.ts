@@ -233,6 +233,57 @@ describe("Auth API", () => {
     });
   });
 
+  describe("PATCH /api/v1/auth/me", () => {
+    it("updates the authenticated user's safe profile fields", async () => {
+      await registerTestUser();
+      const loginResponse = await request(app).post("/api/v1/auth/login").send({
+        email: testUser.email,
+        password: testUser.password,
+      });
+
+      const response = await request(app)
+        .patch("/api/v1/auth/me")
+        .set("Authorization", `Bearer ${loginResponse.body.data.accessToken}`)
+        .send({ name: "Updated User", email: "UPDATED@AUTH-TEST.LOCAL" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toMatchObject({
+        name: "Updated User",
+        email: "updated@auth-test.local",
+      });
+      expect(response.body.data.passwordHash).toBeUndefined();
+    });
+
+    it("rejects an email already used by another account", async () => {
+      await registerTestUser();
+      const loginResponse = await request(app).post("/api/v1/auth/login").send({
+        email: testUser.email,
+        password: testUser.password,
+      });
+      const otherEmail = `other-${randomUUID()}@auth-test.local`;
+      await request(app).post("/api/v1/auth/register").send({
+        ...testUser,
+        email: otherEmail,
+      });
+
+      const response = await request(app)
+        .patch("/api/v1/auth/me")
+        .set("Authorization", `Bearer ${loginResponse.body.data.accessToken}`)
+        .send({ name: "Updated User", email: otherEmail });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe("EMAIL_EXISTS");
+    });
+
+    it("requires authentication", async () => {
+      const response = await request(app)
+        .patch("/api/v1/auth/me")
+        .send({ name: "Updated User", email: testUser.email });
+
+      expect(response.status).toBe(401);
+    });
+  });
+
   describe("Protected route auth middleware via GET /api/v1/auth/me", () => {
     it("rejects missing access token", async () => {
       const response = await request(app).get("/api/v1/auth/me");

@@ -77,3 +77,25 @@ export async function me(
     next(error);
   }
 }
+
+export async function updateMe(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      res.status(401).json({
+        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+      });
+      return;
+    }
+
+    const user = await authService.updateCurrentUser(userId, req.body);
+    res.status(200).json({ data: user });
+  } catch (error) {
+    next(error);
+  }
+}

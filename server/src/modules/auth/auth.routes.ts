@@ -4,6 +4,7 @@ import {
   logoutSchema,
   refreshSchema,
   registerSchema,
+  updateProfileSchema,
 } from "@marketbook/shared/validation";
 import { authenticate } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
@@ -16,3 +17,9 @@ authRouter.post("/login", validate(loginSchema), authController.login);
 authRouter.post("/refresh", validate(refreshSchema), authController.refresh);
 authRouter.post("/logout", validate(logoutSchema), authController.logout);
 authRouter.get("/me", authenticate, authController.me);
+authRouter.patch(
+  "/me",
+  authenticate,
+  validate(updateProfileSchema),
+  authController.updateMe,
+);

@@ -3,10 +3,12 @@ export {
   logoutSchema,
   refreshSchema,
   registerSchema,
+  updateProfileSchema,
   type LoginInput,
   type LogoutInput,
   type RefreshInput,
   type RegisterInput,
+  type UpdateProfileInput,
 } from "./auth.js";
 
 export {

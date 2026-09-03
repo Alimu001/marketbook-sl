@@ -4,6 +4,7 @@ import type {
   LogoutInput,
   RefreshInput,
   RegisterInput,
+  UpdateProfileInput,
 } from "@marketbook/shared/validation";
 import type { User } from "../../../generated/prisma/client.js";
 import { comparePassword, hashPassword } from "../../lib/bcrypt.js";
@@ -143,6 +144,27 @@ export async function getCurrentUser(userId: string): Promise<PublicUser> {
   if (!user) {
     throw new AppError(401, "Authentication required", "UNAUTHORIZED");
   }
+
+  return toPublicUser(user);
+}
+
+export async function updateCurrentUser(
+  userId: string,
+  input: UpdateProfileInput,
+): Promise<PublicUser> {
+  const emailOwner = await prisma.user.findUnique({
+    where: { email: input.email },
+    select: { id: true },
+  });
+
+  if (emailOwner && emailOwner.id !== userId) {
+    throw new AppError(409, "Email already registered", "EMAIL_EXISTS");
+  }
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { name: input.name, email: input.email },
+  });
 
   return toPublicUser(user);
 }
