@@ -551,10 +551,22 @@ describe("Inventory API", () => {
       expect(response.body.data[0]).toMatchObject({
         productId,
         productName: "Cement",
+        sku: "LST-1",
+        barcode: "2020202020202",
+        sellingPrice: "120.00",
         quantity: "100",
         isLowStock: false,
       });
       expect(response.body.meta.total).toBeGreaterThanOrEqual(1);
+
+      const barcodeResponse = await request(app)
+        .get(inventoryPath(businessId))
+        .set(authHeader(owner.accessToken))
+        .query({ page: 1, limit: 20, search: "2020202020202" });
+
+      expect(barcodeResponse.status).toBe(200);
+      expect(barcodeResponse.body.data).toHaveLength(1);
+      expect(barcodeResponse.body.data[0].productId).toBe(productId);
     });
   });
 

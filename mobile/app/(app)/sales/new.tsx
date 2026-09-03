@@ -32,7 +32,6 @@ import {
   subtractQuantities,
 } from "@/inventory/quantity";
 import { formatMoneyDisplay, formatProductPrice } from "@/products/money";
-import type { Product } from "@/products/types";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
 import { customerSelectHref, saleDetailHref, salePaymentHref } from "@/navigation/hrefs";
 import {
@@ -152,36 +151,27 @@ export default function NewSaleScreen() {
     setProductError(undefined);
 
     try {
-      const [inventoryResponse, productResponse] = await Promise.all([
-        readRepository.listInventory(scope, networkStatus, {
-          page: 1,
-          limit: PAGE_SIZE,
-          search: debouncedSearch || undefined,
-        }),
-        readRepository.listProducts(scope, networkStatus, {
+      const inventoryResponse = await readRepository.listInventory(
+        scope,
+        networkStatus,
+        {
           page: 1,
           limit: PAGE_SIZE,
           search: debouncedSearch || undefined,
           isActive: true,
-        }),
-      ]);
-
-      const stockByProductId = new Map(
-        inventoryResponse.items.map((item) => [item.productId, item.quantity]),
+        },
       );
 
-      const merged = productResponse.items
-        .map((product: Product) => ({
-          productId: product.id,
-          name: product.name,
-          sku: product.sku,
-          unit: product.unit,
-          sellingPrice: product.sellingPrice,
-          quantity: stockByProductId.get(product.id) ?? "0",
-        }))
-        .filter((product) => product.quantity !== undefined);
-
-      setProducts(merged);
+      setProducts(
+        inventoryResponse.items.map((item) => ({
+          productId: item.productId,
+          name: item.productName,
+          sku: item.sku,
+          unit: item.unit,
+          sellingPrice: item.sellingPrice,
+          quantity: item.quantity,
+        })),
+      );
     } catch (error) {
       setProductError(getUserFacingErrorMessage(error));
     } finally {
@@ -555,7 +545,7 @@ export default function NewSaleScreen() {
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Search products..."
+          placeholder="Search products, SKU or barcode..."
           style={styles.searchInput}
         />
 

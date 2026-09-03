@@ -26,7 +26,9 @@ export interface InventoryListItem {
   productId: string;
   productName: string;
   sku: string | null;
+  barcode: string | null;
   unit: string;
+  sellingPrice: string;
   quantity: string;
   lowStockThreshold: string;
   isLowStock: boolean;

@@ -2,7 +2,10 @@ import { listProducts as apiListProducts } from "@/api/products";
 import { listInventory as apiListInventory } from "@/api/inventory";
 import type { PaginatedResponse } from "@/api/errors";
 import type { Product } from "@/products/types";
-import type { InventoryListItem } from "@/inventory/types";
+import type {
+  InventoryListItem,
+  ListInventoryParams,
+} from "@/inventory/types";
 import {
   listCacheRecords,
   pruneCacheHistory,
@@ -80,7 +83,7 @@ export async function listProducts(
 export async function listInventory(
   scope: SyncScope,
   networkStatus: NetworkStatus,
-  params: { page?: number; limit?: number; search?: string } = {},
+  params: ListInventoryParams = {},
 ): Promise<PaginatedResponse<InventoryListItem[]>> {
   if (isOnlineStatus(networkStatus)) {
     const response = await apiListInventory(
@@ -117,10 +120,21 @@ export async function listInventory(
 
   let items = cached.map((record) => record.data);
 
+  if (params.isActive !== undefined) {
+    items = items.filter((item) => item.isActive === params.isActive);
+  }
+
+  if (params.lowStock !== undefined) {
+    items = items.filter((item) => item.isLowStock === params.lowStock);
+  }
+
   if (params.search) {
     const query = params.search.toLowerCase();
-    items = items.filter((item) =>
-      item.productName.toLowerCase().includes(query),
+    items = items.filter(
+      (item) =>
+        item.productName.toLowerCase().includes(query) ||
+        item.sku?.toLowerCase().includes(query) ||
+        item.barcode?.toLowerCase().includes(query),
     );
   }
 

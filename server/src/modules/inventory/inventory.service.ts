@@ -225,6 +225,12 @@ export async function listInventory(
                   mode: "insensitive" as const,
                 },
               },
+              {
+                barcode: {
+                  contains: query.search,
+                  mode: "insensitive" as const,
+                },
+              },
             ],
           }
         : {}),
@@ -249,6 +255,12 @@ export async function listInventory(
                   },
                   {
                     sku: {
+                      contains: query.search,
+                      mode: "insensitive" as const,
+                    },
+                  },
+                  {
+                    barcode: {
                       contains: query.search,
                       mode: "insensitive" as const,
                     },
@@ -306,7 +318,9 @@ export async function listInventory(
           productId: balance.productId,
           productName: balance.product.name,
           sku: balance.product.sku,
+          barcode: balance.product.barcode,
           unit: balance.product.unit,
+          sellingPrice: balance.product.sellingPrice.toFixed(2),
           quantity: formatQuantity(available),
           lowStockThreshold: formatQuantity(balance.lowStockThreshold),
           isLowStock: isLowStock(available, balance.lowStockThreshold),
@@ -363,7 +377,9 @@ export async function listInventory(
         productId: balance.productId,
         productName: balance.product.name,
         sku: balance.product.sku,
+        barcode: balance.product.barcode,
         unit: balance.product.unit,
+        sellingPrice: balance.product.sellingPrice.toFixed(2),
         quantity: formatQuantity(available),
         lowStockThreshold: formatQuantity(balance.lowStockThreshold),
         isLowStock: isLowStock(available, balance.lowStockThreshold),
