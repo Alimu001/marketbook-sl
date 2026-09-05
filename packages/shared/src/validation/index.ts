@@ -4,21 +4,29 @@ export {
   refreshSchema,
   registerSchema,
   updateProfileSchema,
+  changePasswordSchema,
   type LoginInput,
   type LogoutInput,
   type RefreshInput,
   type RegisterInput,
   type UpdateProfileInput,
+  type ChangePasswordInput,
 } from "./auth.js";
 
 export {
   createBusinessSchema,
   updateBusinessSchema,
   updateMemberRoleSchema,
+  addBusinessMemberSchema,
+  listBusinessActivitiesQuerySchema,
+  resetMemberPasswordSchema,
   businessRoleSchema,
   type CreateBusinessInput,
   type UpdateBusinessInput,
   type UpdateMemberRoleInput,
+  type AddBusinessMemberInput,
+  type ListBusinessActivitiesQuery,
+  type ResetMemberPasswordInput,
 } from "./business.js";
 
 export {

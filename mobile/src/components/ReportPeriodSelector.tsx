@@ -11,12 +11,14 @@ interface ReportPeriodSelectorProps {
   preset: ReportPeriodPreset;
   range: ReportPeriodRange;
   onChange: (preset: ReportPeriodPreset, range: ReportPeriodRange) => void;
+  compact?: boolean;
 }
 
 export function ReportPeriodSelector({
   preset,
   range,
   onChange,
+  compact = false,
 }: ReportPeriodSelectorProps) {
   const [customFrom, setCustomFrom] = useState(range.from);
   const [customTo, setCustomTo] = useState(range.to);
@@ -35,8 +37,8 @@ export function ReportPeriodSelector({
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Period</Text>
+    <View style={[styles.container, compact && styles.containerCompact]}>
+      {compact ? null : <Text style={styles.label}>Period</Text>}
       <View style={styles.row}>
         {REPORT_PERIOD_PRESETS.map((entry) => (
           <Pressable
@@ -45,6 +47,7 @@ export function ReportPeriodSelector({
             onPress={() => handlePreset(entry.key)}
             style={[
               styles.chip,
+              compact && styles.chipCompact,
               preset === entry.key && styles.chipActive,
             ]}
           >
@@ -82,7 +85,7 @@ export function ReportPeriodSelector({
             <Text style={styles.applyText}>Apply</Text>
           </Pressable>
         </View>
-      ) : (
+      ) : compact ? null : (
         <Text style={styles.rangeText}>
           {range.from} to {range.to}
         </Text>
@@ -95,6 +98,10 @@ const styles = StyleSheet.create({
   container: {
     gap: 8,
     marginBottom: 12,
+  },
+  containerCompact: {
+    gap: 5,
+    marginBottom: 2,
   },
   label: {
     fontSize: 15,
@@ -117,6 +124,10 @@ const styles = StyleSheet.create({
   chipActive: {
     backgroundColor: "#0F766E",
     borderColor: "#0F766E",
+  },
+  chipCompact: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
   chipText: {
     color: "#475569",

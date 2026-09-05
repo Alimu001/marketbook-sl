@@ -4,6 +4,7 @@ export interface PublicUser {
   id: string;
   name: string | null;
   email: string;
+  mustChangePassword: boolean;
   createdAt: string;
 }
 
@@ -65,6 +66,17 @@ export function updateCurrentUser(
   input: { name: string; email: string },
 ): Promise<PublicUser> {
   return apiRequest<PublicUser>("/auth/me", {
+    method: "PATCH",
+    accessToken,
+    body: input,
+  });
+}
+
+export function changeCurrentPassword(
+  accessToken: string,
+  input: { currentPassword: string; newPassword: string },
+): Promise<PublicUser> {
+  return apiRequest<PublicUser>("/auth/password", {
     method: "PATCH",
     accessToken,
     body: input,

@@ -5,6 +5,7 @@ import {
   refreshSchema,
   registerSchema,
   updateProfileSchema,
+  changePasswordSchema,
 } from "@marketbook/shared/validation";
 import { authenticate } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
@@ -22,4 +23,10 @@ authRouter.patch(
   authenticate,
   validate(updateProfileSchema),
   authController.updateMe,
+);
+authRouter.patch(
+  "/password",
+  authenticate,
+  validate(changePasswordSchema),
+  authController.changePassword,
 );

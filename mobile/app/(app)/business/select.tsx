@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatBusinessRole, useBusiness } from "@/business";
@@ -8,6 +8,13 @@ import { appHref, businessCreateHref } from "@/navigation/hrefs";
 export default function SelectBusinessScreen() {
   const router = useRouter();
   const { businesses, selectBusiness } = useBusiness();
+  const canChooseBusiness = businesses.some(
+    (business) => business.role === "owner",
+  );
+
+  if (!canChooseBusiness) {
+    return <Redirect href={appHref} />;
+  }
 
   const handleSelect = async (businessId: string) => {
     const business = businesses.find((entry) => entry.id === businessId);

@@ -4,10 +4,15 @@ export const homeHref = "/" as Href;
 export const loginHref = "/(auth)/login" as Href;
 export const registerHref = "/(auth)/register" as Href;
 export const appHref = "/(app)" as Href;
+export const servicesHref = "/(app)/services" as Href;
 export const businessCreateHref = "/(app)/business/create" as Href;
 export const businessSelectHref = "/(app)/business/select" as Href;
 export const businessSettingsHref = "/(app)/business/settings" as Href;
+export const businessMembersHref = "/(app)/business/members" as Href;
+export const businessMemberEnrollHref = "/(app)/business/member-enroll" as Href;
+export const businessActivitiesHref = "/(app)/business/activities" as Href;
 export const personalSettingsHref = "/(app)/settings/profile" as Href;
+export const passwordSettingsHref = "/(app)/settings/password" as Href;
 export const productsHref = "/(app)/products" as Href;
 export const productCreateHref = "/(app)/products/create" as Href;
 export const inventoryHref = "/(app)/inventory" as Href;
@@ -45,6 +50,10 @@ export function paymentDetailHref(paymentId: string): Href {
 
 export function saleDetailHref(saleId: string): Href {
   return `/(app)/sales/${saleId}` as Href;
+}
+
+export function businessMemberPasswordHref(userId: string): Href {
+  return `/(app)/business/member-password/${userId}` as Href;
 }
 
 export function saleReceiptHref(saleId: string): Href {

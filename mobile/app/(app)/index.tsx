@@ -24,45 +24,18 @@ import {
   type ReportPeriodRange,
 } from "@/reports";
 import {
-  appHref,
   businessCreateHref,
-  businessSettingsHref,
   businessSelectHref,
-  customersHref,
-  debtsHref,
-  expensesHref,
-  inventoryHref,
-  payablesHref,
-  paymentsHref,
-  productsHref,
-  purchasesHref,
-  reportsHref,
-  salesHref,
-  suppliersHref,
-  syncHref,
 } from "@/navigation/hrefs";
 import { formatMoneyDisplay } from "@/products/money";
-
-const QUICK_ACTIONS = [
-  { label: "Reports", href: reportsHref, enabled: true },
-  { label: "Products", href: productsHref, enabled: true },
-  { label: "Inventory", href: inventoryHref, enabled: true },
-  { label: "Sales", href: salesHref, enabled: true },
-  { label: "Customers", href: customersHref, enabled: true },
-  { label: "Debts", href: debtsHref, enabled: true },
-  { label: "Suppliers", href: suppliersHref, enabled: true },
-  { label: "Purchases", href: purchasesHref, enabled: true },
-  { label: "Payables", href: payablesHref, enabled: true },
-  { label: "Expenses", href: expensesHref, enabled: true },
-  { label: "Payments", href: paymentsHref, enabled: true },
-  { label: "Sync", href: syncHref, enabled: true },
-] as const;
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.metricCard}>
       <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricValue} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -137,18 +110,11 @@ export default function AppHomeScreen() {
     void loadDashboard();
   }, [loadDashboard]);
 
-  const handleLogout = async () => {
-    setDashboard(null);
-    await logout();
-    router.replace("/");
-  };
-
   if (!currentBusiness) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
           <View style={styles.content}>
-            <Text style={styles.brand}>MarketBook SL</Text>
             <Text style={styles.title}>Welcome to MarketBook SL</Text>
             <Text style={styles.subtitle}>
               Set up your first business to start managing sales, products, and
@@ -176,7 +142,6 @@ export default function AppHomeScreen() {
               />
             ) : null}
 
-            <FormButton label="Sign Out" onPress={() => void handleLogout()} />
           </View>
         </View>
       </SafeAreaView>
@@ -194,22 +159,18 @@ export default function AppHomeScreen() {
           />
         }
       >
-        <Text style={styles.brand}>MarketBook SL</Text>
-        <Text style={styles.businessName}>{currentBusiness.name}</Text>
-        <Text style={styles.roleLine}>
-          Role: {formatBusinessRole(currentBusiness.role)}
-        </Text>
-        {currentBusiness.role === "owner" || currentBusiness.role === "admin" ? (
-          <FormButton
-            label="Business & Receipt Settings"
-            variant="secondary"
-            onPress={() => router.push(businessSettingsHref)}
-          />
-        ) : null}
-
+        <View style={styles.dashboardHeader}>
+          <Text style={styles.businessName} numberOfLines={1}>
+            {currentBusiness.name}
+          </Text>
+          <Text style={styles.roleLine}>
+            {formatBusinessRole(currentBusiness.role)}
+          </Text>
+        </View>
         <ReportPeriodSelector
           preset={preset}
           range={range}
+          compact
           onChange={(nextPreset, nextRange) => {
             setPreset(nextPreset);
             setRange(nextRange);
@@ -228,63 +189,33 @@ export default function AppHomeScreen() {
           <>
             <View style={styles.metricGrid}>
               <MetricCard
-                label="Sales Revenue"
+                label="Revenue"
                 value={formatMoneyDisplay(dashboard.salesRevenue)}
               />
               <MetricCard
-                label="Gross Profit"
+                label="Gross profit"
                 value={formatMoneyDisplay(dashboard.grossProfit)}
               />
               <MetricCard
-                label="Operating Expenses"
+                label="Expenses"
                 value={formatMoneyDisplay(dashboard.operatingExpenses)}
               />
               <MetricCard
-                label="Estimated Net Operating Profit"
+                label="Net profit"
                 value={formatMoneyDisplay(dashboard.estimatedNetOperatingProfit)}
               />
             </View>
 
             <View style={styles.secondaryMetrics}>
-              <Text style={styles.secondaryLine}>
-                Receivables: {formatMoneyDisplay(dashboard.customerReceivables)}
-              </Text>
-              <Text style={styles.secondaryLine}>
-                Payables: {formatMoneyDisplay(dashboard.supplierPayables)}
-              </Text>
-              <Text style={styles.secondaryLine}>
-                Low Stock: {dashboard.lowStockCount} products
-              </Text>
-              <Text style={styles.secondaryLine}>
-                Sales Count: {dashboard.salesCount}
-              </Text>
-              <Text style={styles.secondaryLine}>
-                Purchase Spend: {formatMoneyDisplay(dashboard.purchaseSpend)}
-              </Text>
+              <Text style={styles.secondaryLine}>Receivables: {formatMoneyDisplay(dashboard.customerReceivables)}</Text>
+              <Text style={styles.secondaryLine}>Payables: {formatMoneyDisplay(dashboard.supplierPayables)}</Text>
+              <Text style={styles.secondaryLine}>Low stock: {dashboard.lowStockCount}</Text>
+              <Text style={styles.secondaryLine}>Sales: {dashboard.salesCount}</Text>
+              <Text style={styles.secondaryLine}>Purchases: {formatMoneyDisplay(dashboard.purchaseSpend)}</Text>
             </View>
           </>
         ) : null}
 
-        <View style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.quickActionsGrid}>
-            {QUICK_ACTIONS.map((action) => (
-              <Pressable
-                key={action.label}
-                accessibilityRole="button"
-                onPress={() => router.push(action.href)}
-                style={({ pressed }) => [
-                  styles.quickActionButton,
-                  pressed && styles.buttonPressed,
-                ]}
-              >
-                <Text style={styles.quickActionTextEnabled}>{action.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <FormButton label="Sign Out" onPress={() => void handleLogout()} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -302,36 +233,38 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 32,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 8,
   },
   content: {
     flex: 1,
     paddingTop: 16,
     gap: 12,
   },
-  brand: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0F766E",
-    letterSpacing: 0.3,
-  },
   title: {
     fontSize: 30,
     fontWeight: "700",
     color: "#0F172A",
   },
+  dashboardHeader: {
+    alignItems: "flex-start",
+    gap: 3,
+  },
   businessName: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "700",
     color: "#0F172A",
   },
   roleLine: {
-    fontSize: 16,
-    color: "#475569",
-    fontWeight: "600",
+    fontSize: 12,
+    color: "#0F766E",
+    fontWeight: "700",
+    backgroundColor: "#CCFBF1",
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
   },
   offlineHint: {
     fontSize: 14,
@@ -349,70 +282,43 @@ const styles = StyleSheet.create({
   metricGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 8,
   },
   metricCard: {
     minWidth: "46%",
     flexGrow: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    padding: 14,
-    gap: 4,
+    padding: 10,
+    gap: 2,
   },
   metricLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#64748B",
     fontWeight: "600",
   },
   metricValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
     color: "#0F172A",
   },
   secondaryMetrics: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    padding: 14,
-    gap: 6,
+    padding: 10,
+    gap: 5,
   },
   secondaryLine: {
-    fontSize: 15,
+    width: "48%",
+    fontSize: 12,
     color: "#334155",
     fontWeight: "600",
-  },
-  sectionTitle: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  quickActionsSection: {
-    gap: 12,
-  },
-  quickActionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  quickActionButton: {
-    minWidth: "46%",
-    flexGrow: 1,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 12,
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  quickActionTextEnabled: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#0F766E",
   },
   actions: {
     gap: 12,

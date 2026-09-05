@@ -53,7 +53,7 @@ function toBusinessSummary(
 }
 
 export function BusinessProvider({ children }: { children: ReactNode }) {
-  const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { accessToken, user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [businesses, setBusinesses] = useState<BusinessSummary[]>([]);
   const [currentBusiness, setCurrentBusiness] =
     useState<BusinessSummary | null>(null);
@@ -61,26 +61,31 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const loadRequestId = useRef(0);
+  const activeUserIdRef = useRef<string | undefined>(undefined);
 
   const clearBusinessState = useCallback(async () => {
     setBusinesses([]);
     setCurrentBusiness(null);
     setIsInitialized(false);
     setLoadError(null);
-    await clearSelectedBusinessId();
-    await clearBusinessesCache();
-  }, []);
+    if (user?.id) {
+      await clearSelectedBusinessId(user.id);
+      await clearBusinessesCache(user.id);
+    }
+  }, [user?.id]);
 
   const selectBusiness = useCallback(async (business: BusinessSummary) => {
     setCurrentBusiness(business);
-    await saveSelectedBusinessId(business.id);
-  }, []);
+    if (!user?.id) return;
+    await saveSelectedBusinessId(user.id, business.id);
+  }, [user?.id]);
 
   const applyLoadedBusinesses = useCallback(
     async (loadedBusinesses: BusinessSummary[]) => {
       setBusinesses(loadedBusinesses);
 
-      const savedBusinessId = await getSelectedBusinessId();
+      if (!user?.id) return;
+      const savedBusinessId = await getSelectedBusinessId(user.id);
 
       if (savedBusinessId) {
         const savedBusiness = loadedBusinesses.find(
@@ -92,22 +97,26 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        await clearSelectedBusinessId();
+        await clearSelectedBusinessId(user.id);
         setCurrentBusiness(null);
       }
 
-      if (loadedBusinesses.length === 1) {
+      if (
+        loadedBusinesses.length > 0 &&
+        (loadedBusinesses.length === 1 ||
+          !loadedBusinesses.some((business) => business.role === "owner"))
+      ) {
         await selectBusiness(loadedBusinesses[0]!);
         return;
       }
 
       setCurrentBusiness(null);
     },
-    [selectBusiness],
+    [selectBusiness, user?.id],
   );
 
   const loadBusinesses = useCallback(async () => {
-    if (!accessToken) {
+    if (!accessToken || !user?.id) {
       await clearBusinessState();
       return;
     }
@@ -123,7 +132,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      await saveBusinessesCache(loadedBusinesses);
+      await saveBusinessesCache(user.id, loadedBusinesses);
       await applyLoadedBusinesses(loadedBusinesses);
     } catch (error) {
       if (requestId !== loadRequestId.current) {
@@ -136,7 +145,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       }
 
       if (error instanceof ApiError && error.status === 0) {
-        const cachedBusinesses = await getBusinessesCache();
+        const cachedBusinesses = await getBusinessesCache(user.id);
         if (cachedBusinesses.length > 0) {
           await applyLoadedBusinesses(cachedBusinesses);
           setLoadError(null);
@@ -154,11 +163,11 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         setIsInitialized(true);
       }
     }
-  }, [accessToken, applyLoadedBusinesses, clearBusinessState]);
+  }, [accessToken, user?.id, applyLoadedBusinesses, clearBusinessState]);
 
   const createBusiness = useCallback(
     async (input: { name: string; phone: string; address: string }) => {
-      if (!accessToken) {
+      if (!accessToken || !user?.id) {
         throw new ApiError(401, "UNAUTHORIZED", "Your session has expired.");
       }
 
@@ -179,8 +188,8 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         return next;
       });
 
-      const cachedBusinesses = await getBusinessesCache();
-      await saveBusinessesCache([
+      const cachedBusinesses = await getBusinessesCache(user.id);
+      await saveBusinessesCache(user.id, [
         ...cachedBusinesses.filter((business) => business.id !== summary.id),
         summary,
       ]);
@@ -188,7 +197,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       await selectBusiness(summary);
       return summary;
     },
-    [accessToken, selectBusiness],
+    [accessToken, user?.id, selectBusiness],
   );
 
   useEffect(() => {
@@ -197,14 +206,30 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     }
 
     if (!isAuthenticated || !accessToken) {
+      activeUserIdRef.current = undefined;
       void clearBusinessState();
       return;
+    }
+
+    if (activeUserIdRef.current !== user?.id) {
+      activeUserIdRef.current = user?.id;
+      setBusinesses([]);
+      setCurrentBusiness(null);
+      setLoadError(null);
+      setIsInitialized(false);
     }
 
     void loadBusinesses().catch(() => {
       // Route screens surface load failures when business data is required.
     });
-  }, [authLoading, isAuthenticated, accessToken, loadBusinesses, clearBusinessState]);
+  }, [
+    authLoading,
+    isAuthenticated,
+    accessToken,
+    user?.id,
+    loadBusinesses,
+    clearBusinessState,
+  ]);
 
   const value = useMemo<BusinessContextValue>(
     () => ({

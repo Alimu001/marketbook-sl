@@ -346,6 +346,110 @@ describe("Business API", () => {
     });
   });
 
+  describe("POST /api/v1/businesses/:businessId/members", () => {
+    it("allows an owner to enroll a new staff account", async () => {
+      const owner = await createTestUser(app, "add-owner");
+      const created = await createBusiness(app, owner.accessToken, "Add Member Business");
+      const businessId = created.body.data.business.id;
+      const email = "enrolled-staff@biz-test.local";
+
+      const response = await request(app)
+        .post(`/api/v1/businesses/${businessId}/members`)
+        .set(authHeader(owner.accessToken))
+        .send({
+          name: "Enrolled Staff",
+          email: email.toUpperCase(),
+          password: "SecurePass1",
+          role: "staff",
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data).toMatchObject({
+        name: "Enrolled Staff",
+        email,
+        role: "staff",
+      });
+
+      const loginResponse = await request(app)
+        .post("/api/v1/auth/login")
+        .send({ email, password: "SecurePass1" });
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.data.user.mustChangePassword).toBe(true);
+
+      const businessesResponse = await request(app)
+        .get("/api/v1/businesses")
+        .set(authHeader(loginResponse.body.data.accessToken));
+      expect(businessesResponse.status).toBe(200);
+      expect(businessesResponse.body.data).toEqual([
+        expect.objectContaining({ id: businessId, role: "staff" }),
+      ]);
+    });
+
+    it("prevents non-owners from adding members", async () => {
+      const owner = await createTestUser(app, "add-owner-guard");
+      const admin = await createMemberUser(app, "add-admin-guard");
+      const target = await createMemberUser(app, "add-target-guard");
+      const created = await createBusiness(app, owner.accessToken, "Guard Add Business");
+      const businessId = created.body.data.business.id;
+      await addMemberDirect(businessId, admin, "admin");
+
+      const response = await request(app)
+        .post(`/api/v1/businesses/${businessId}/members`)
+        .set(authHeader(admin.accessToken))
+        .send({
+          name: target.name,
+          email: target.email,
+          password: "SecurePass1",
+          role: "staff",
+        });
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe("GET /api/v1/businesses/:businessId/activities", () => {
+    it("allows the owner to see and filter recorded business activity", async () => {
+      const owner = await createTestUser(app, "activity-owner");
+      const created = await createBusiness(app, owner.accessToken, "Activity Business");
+      const businessId = created.body.data.business.id;
+
+      await request(app)
+        .post(`/api/v1/businesses/${businessId}/members`)
+        .set(authHeader(owner.accessToken))
+        .send({
+          name: "Activity Staff",
+          email: "activity-staff@biz-test.local",
+          password: "SecurePass1",
+          role: "staff",
+        });
+
+      const response = await request(app)
+        .get(`/api/v1/businesses/${businessId}/activities?userId=${owner.id}`)
+        .set(authHeader(owner.accessToken));
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data[0]).toMatchObject({
+        actorUserId: owner.id,
+        method: "POST",
+      });
+    });
+
+    it("prevents non-owners from viewing activity", async () => {
+      const owner = await createTestUser(app, "activity-owner-guard");
+      const admin = await createMemberUser(app, "activity-admin-guard");
+      const created = await createBusiness(app, owner.accessToken, "Activity Guard Business");
+      const businessId = created.body.data.business.id;
+      await addMemberDirect(businessId, admin, "admin");
+
+      const response = await request(app)
+        .get(`/api/v1/businesses/${businessId}/activities`)
+        .set(authHeader(admin.accessToken));
+
+      expect(response.status).toBe(403);
+    });
+  });
+
   describe("PATCH /api/v1/businesses/:businessId/members/:userId/role", () => {
     it("allows owner to change member roles", async () => {
       const owner = await createTestUser(app, "owner");

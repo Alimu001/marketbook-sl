@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { listCustomers } from "@/api/customers";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
 import { useBusiness } from "@/business";
@@ -18,6 +17,7 @@ import { FormButton, FormMessage } from "@/components/AuthScreen";
 import { usePosCustomer } from "@/customers";
 import type { CustomerSummary } from "@/customers/types";
 import { customerCreateHref } from "@/navigation/hrefs";
+import { customersRepository, useOffline } from "@/offline";
 import { useDebouncedValue } from "@/products/useDebouncedValue";
 
 const PAGE_SIZE = 30;
@@ -27,6 +27,7 @@ export default function SelectCustomerScreen() {
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
   const { setSelectedCustomer } = usePosCustomer();
+  const { getScope, networkStatus } = useOffline();
 
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
   const [search, setSearch] = useState("");
@@ -41,11 +42,16 @@ export default function SelectCustomerScreen() {
       return;
     }
 
+    const scope = getScope();
+    if (!scope) {
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(undefined);
 
     try {
-      const response = await listCustomers(accessToken, businessId, {
+      const response = await customersRepository.listCustomers(scope, networkStatus, {
         page: 1,
         limit: PAGE_SIZE,
         search: debouncedSearch || undefined,
@@ -63,7 +69,7 @@ export default function SelectCustomerScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, businessId, debouncedSearch, router]);
+  }, [accessToken, businessId, debouncedSearch, getScope, networkStatus, router]);
 
   useEffect(() => {
     void loadCustomers();

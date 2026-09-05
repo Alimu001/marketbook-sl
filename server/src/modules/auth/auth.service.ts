@@ -5,6 +5,7 @@ import type {
   RefreshInput,
   RegisterInput,
   UpdateProfileInput,
+  ChangePasswordInput,
 } from "@marketbook/shared/validation";
 import type { User } from "../../../generated/prisma/client.js";
 import { comparePassword, hashPassword } from "../../lib/bcrypt.js";
@@ -24,6 +25,7 @@ function toPublicUser(user: User): PublicUser {
     id: user.id,
     name: user.name,
     email: user.email,
+    mustChangePassword: user.mustChangePassword,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -167,4 +169,20 @@ export async function updateCurrentUser(
   });
 
   return toPublicUser(user);
+}
+
+export async function changeCurrentPassword(
+  userId: string,
+  input: ChangePasswordInput,
+): Promise<PublicUser> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !(await comparePassword(input.currentPassword, user.passwordHash))) {
+    throw new AppError(401, "Current password is incorrect", "INVALID_PASSWORD");
+  }
+  const passwordHash = await hashPassword(input.newPassword);
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, mustChangePassword: false },
+  });
+  return toPublicUser(updated);
 }

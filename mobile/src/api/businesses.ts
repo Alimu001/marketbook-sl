@@ -1,4 +1,4 @@
-import { apiRequest } from "./client";
+import { apiRequest, apiRequestPaginated, type PaginatedResponse } from "./client";
 
 export type BusinessRole = "owner" | "admin" | "staff" | "cashier";
 
@@ -69,6 +69,25 @@ export function getBusiness(
   });
 }
 
+export interface BusinessMemberSummary {
+  userId: string;
+  name: string | null;
+  email: string;
+  role: BusinessRole;
+  joinedAt: string;
+}
+
+export interface BusinessActivitySummary {
+  id: string;
+  actorUserId: string;
+  actorName: string | null;
+  actorEmail: string;
+  method: string;
+  path: string;
+  statusCode: number;
+  createdAt: string;
+}
+
 export function updateBusiness(
   accessToken: string,
   businessId: string,
@@ -85,4 +104,80 @@ export function updateBusiness(
     accessToken,
     body: input,
   });
+}
+
+export function listBusinessMembers(
+  accessToken: string,
+  businessId: string,
+): Promise<BusinessMemberSummary[]> {
+  return apiRequest<BusinessMemberSummary[]>(
+    businessScopedPath(businessId, "/members"),
+    { method: "GET", accessToken },
+  );
+}
+
+export function addBusinessMember(
+  accessToken: string,
+  businessId: string,
+  input: {
+    name: string;
+    email: string;
+    password: string;
+    role: Exclude<BusinessRole, "owner">;
+  },
+): Promise<BusinessMemberSummary> {
+  return apiRequest<BusinessMemberSummary>(
+    businessScopedPath(businessId, "/members"),
+    { method: "POST", accessToken, body: input },
+  );
+}
+
+export function listBusinessActivities(
+  accessToken: string,
+  businessId: string,
+  params: { userId?: string; page?: number; limit?: number } = {},
+): Promise<PaginatedResponse<BusinessActivitySummary[]>> {
+  const query = new URLSearchParams();
+  if (params.userId) query.set("userId", params.userId);
+  query.set("page", String(params.page ?? 1));
+  query.set("limit", String(params.limit ?? 30));
+  return apiRequestPaginated<BusinessActivitySummary[]>(
+    `${businessScopedPath(businessId, "/activities")}?${query.toString()}`,
+    { method: "GET", accessToken },
+  );
+}
+
+export function updateBusinessMemberRole(
+  accessToken: string,
+  businessId: string,
+  userId: string,
+  role: Exclude<BusinessRole, "owner">,
+): Promise<BusinessMemberSummary> {
+  return apiRequest<BusinessMemberSummary>(
+    businessScopedPath(businessId, `/members/${userId}/role`),
+    { method: "PATCH", accessToken, body: { role } },
+  );
+}
+
+export function removeBusinessMember(
+  accessToken: string,
+  businessId: string,
+  userId: string,
+): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>(
+    businessScopedPath(businessId, `/members/${userId}`),
+    { method: "DELETE", accessToken },
+  );
+}
+
+export function resetBusinessMemberPassword(
+  accessToken: string,
+  businessId: string,
+  userId: string,
+  password: string,
+): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>(
+    businessScopedPath(businessId, `/members/${userId}/password`),
+    { method: "PATCH", accessToken, body: { password } },
+  );
 }

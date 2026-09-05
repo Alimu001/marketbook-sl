@@ -8,6 +8,7 @@ export type {
 export type {
   BusinessDetails,
   BusinessMemberSummary,
+  BusinessActivitySummary,
   BusinessMembership,
   BusinessSummary,
   CreateBusinessResponse,

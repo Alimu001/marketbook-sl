@@ -36,3 +36,14 @@ export interface BusinessMemberSummary {
   role: BusinessRole;
   joinedAt: string;
 }
+
+export interface BusinessActivitySummary {
+  id: string;
+  actorUserId: string;
+  actorName: string | null;
+  actorEmail: string;
+  method: string;
+  path: string;
+  statusCode: number;
+  createdAt: string;
+}

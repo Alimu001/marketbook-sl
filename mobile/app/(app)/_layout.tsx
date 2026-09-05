@@ -8,11 +8,11 @@ import {
 } from "react-native";
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/business";
-import { businessSelectHref, loginHref } from "@/navigation/hrefs";
+import { businessSelectHref, loginHref, passwordSettingsHref } from "@/navigation/hrefs";
 import { AppSidePanel } from "@/components/AppSidePanel";
 
 export default function AppLayout() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const {
     currentBusiness,
     businesses,
@@ -35,6 +35,13 @@ export default function AppLayout() {
     return <Redirect href={loginHref} />;
   }
 
+  const isPasswordRoute =
+    segments.includes("settings") && segments.includes("password");
+
+  if (user?.mustChangePassword && !isPasswordRoute) {
+    return <Redirect href={passwordSettingsHref} />;
+  }
+
   if (loadError) {
     return (
       <View style={styles.loadingContainer}>
@@ -55,14 +62,23 @@ export default function AppLayout() {
 
   const isBusinessRoute = segments.includes("business");
 
-  if (!currentBusiness && businesses.length > 1 && !isBusinessRoute) {
+  const canChooseBusiness = businesses.some(
+    (business) => business.role === "owner",
+  );
+
+  if (
+    !currentBusiness &&
+    businesses.length > 1 &&
+    canChooseBusiness &&
+    !isBusinessRoute
+  ) {
     return <Redirect href={businessSelectHref} />;
   }
 
   return (
     <View style={styles.appShell}>
-      <Stack screenOptions={{ headerShown: false }} />
       <AppSidePanel />
+      <Stack screenOptions={{ headerShown: false }} />
     </View>
   );
 }

@@ -3,13 +3,17 @@ import {
   createBusinessSchema,
   updateBusinessSchema,
   updateMemberRoleSchema,
+  addBusinessMemberSchema,
+  listBusinessActivitiesQuerySchema,
+  resetMemberPasswordSchema,
 } from "@marketbook/shared/validation";
 import { authenticate } from "../../middleware/auth.js";
 import {
   requireBusinessMembership,
   requireBusinessRole,
 } from "../../middleware/businessAuth.js";
-import { validate } from "../../middleware/validate.js";
+import { validate, validateQuery } from "../../middleware/validate.js";
+import { recordBusinessActivity } from "../../middleware/businessActivity.js";
 import * as businessController from "./business.controller.js";
 import { productsRouter } from "../products/product.routes.js";
 import { inventoryListRouter } from "../inventory/inventory.routes.js";
@@ -43,6 +47,7 @@ businessesRouter.get("/", businessController.listBusinesses);
 const businessScopedRouter = Router({ mergeParams: true });
 
 businessScopedRouter.use(requireBusinessMembership);
+businessScopedRouter.use(recordBusinessActivity);
 
 businessScopedRouter.get("/", businessController.getBusiness);
 businessScopedRouter.patch(
@@ -52,6 +57,18 @@ businessScopedRouter.patch(
   businessController.updateBusiness,
 );
 businessScopedRouter.get("/members", businessController.listMembers);
+businessScopedRouter.post(
+  "/members",
+  requireBusinessRole("owner"),
+  validate(addBusinessMemberSchema),
+  businessController.addMember,
+);
+businessScopedRouter.patch(
+  "/members/:userId/password",
+  requireBusinessRole("owner"),
+  validate(resetMemberPasswordSchema),
+  businessController.resetMemberPassword,
+);
 businessScopedRouter.patch(
   "/members/:userId/role",
   requireBusinessRole("owner"),
@@ -62,6 +79,12 @@ businessScopedRouter.delete(
   "/members/:userId",
   requireBusinessRole("owner", "admin"),
   businessController.removeMember,
+);
+businessScopedRouter.get(
+  "/activities",
+  requireBusinessRole("owner"),
+  validateQuery(listBusinessActivitiesQuerySchema),
+  businessController.listActivities,
 );
 
 businessScopedRouter.use("/inventory", inventoryListRouter);

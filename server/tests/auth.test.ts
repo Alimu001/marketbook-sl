@@ -284,6 +284,44 @@ describe("Auth API", () => {
     });
   });
 
+  describe("PATCH /api/v1/auth/password", () => {
+    it("changes the password and clears the temporary-password requirement", async () => {
+      await registerTestUser();
+      const user = await prisma.user.update({
+        where: { email: testUser.email },
+        data: { mustChangePassword: true },
+      });
+      const accessToken = signAccessToken(user.id);
+
+      const response = await request(app)
+        .patch("/api/v1/auth/password")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ currentPassword: testPassword, newPassword: "NewSecurePass2" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.mustChangePassword).toBe(false);
+
+      const loginResponse = await request(app).post("/api/v1/auth/login").send({
+        email: testUser.email,
+        password: "NewSecurePass2",
+      });
+      expect(loginResponse.status).toBe(200);
+    });
+
+    it("rejects an incorrect current password", async () => {
+      await registerTestUser();
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { email: testUser.email },
+      });
+      const response = await request(app)
+        .patch("/api/v1/auth/password")
+        .set("Authorization", `Bearer ${signAccessToken(user.id)}`)
+        .send({ currentPassword: "WrongPass1", newPassword: "NewSecurePass2" });
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe("INVALID_PASSWORD");
+    });
+  });
+
   describe("Protected route auth middleware via GET /api/v1/auth/me", () => {
     it("rejects missing access token", async () => {
       const response = await request(app).get("/api/v1/auth/me");
