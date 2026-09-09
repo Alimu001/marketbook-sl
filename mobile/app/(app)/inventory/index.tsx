@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -51,6 +51,9 @@ function filterToParams(filter: InventoryFilter): {
 
 export default function InventoryListScreen() {
   const router = useRouter();
+  const { filter: requestedFilter } = useLocalSearchParams<{
+    filter?: string;
+  }>();
   const { accessToken } = useAuth();
   const { currentBusiness } = useBusiness();
   const { getScope, networkStatus } = useOffline();
@@ -59,7 +62,9 @@ export default function InventoryListScreen() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<InventoryFilter>("all");
+  const [filter, setFilter] = useState<InventoryFilter>(
+    requestedFilter === "lowStock" ? "lowStock" : "all",
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -68,6 +73,12 @@ export default function InventoryListScreen() {
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const businessId = currentBusiness?.id;
   const hasMore = items.length < total;
+
+  useEffect(() => {
+    if (requestedFilter === "lowStock") {
+      setFilter("lowStock");
+    }
+  }, [requestedFilter]);
 
   const loadInventory = useCallback(
     async (options: {

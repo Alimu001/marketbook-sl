@@ -26,8 +26,11 @@ import {
 import {
   businessCreateHref,
   businessSelectHref,
+  inventoryHref,
+  inventoryLowStockHref,
+  productCreateHref,
 } from "@/navigation/hrefs";
-import { formatMoneyDisplay } from "@/products/money";
+import { canCreateProduct, formatMoneyDisplay } from "@/products";
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
@@ -189,6 +192,46 @@ export default function AppHomeScreen() {
           <ActivityIndicator size="large" color="#0F766E" style={styles.loader} />
         ) : dashboard ? (
           <>
+            {dashboard.lowStockCount > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`View ${dashboard.lowStockCount} low-stock products`}
+                onPress={() => router.push(inventoryLowStockHref)}
+                style={({ pressed }) => [
+                  styles.stockAlert,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <View style={styles.stockAlertText}>
+                  <Text style={styles.stockAlertTitle}>Low-stock warning</Text>
+                  <Text style={styles.stockAlertMessage}>
+                    {dashboard.lowStockCount} product
+                    {dashboard.lowStockCount === 1 ? " needs" : "s need"} attention
+                  </Text>
+                </View>
+                <Text style={styles.stockAlertAction}>View →</Text>
+              </Pressable>
+            ) : null}
+
+            <View style={styles.shortcutRow}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push(inventoryHref)}
+                style={styles.shortcutButton}
+              >
+                <Text style={styles.shortcutText}>View Inventory</Text>
+              </Pressable>
+              {canCreateProduct(currentBusiness.role) ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push(productCreateHref)}
+                  style={styles.shortcutButton}
+                >
+                  <Text style={styles.shortcutText}>Add Product</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
             {canViewFinancialReports(currentBusiness.role) &&
             "grossProfit" in dashboard ? (
               <>
@@ -215,14 +258,12 @@ export default function AppHomeScreen() {
                   <Text style={styles.secondaryLine}>Payables: {formatMoneyDisplay(dashboard.supplierPayables)}</Text>
                   <Text style={styles.secondaryLine}>Purchases: {formatMoneyDisplay(dashboard.purchaseSpend)}</Text>
                   <Text style={styles.secondaryLine}>Sales: {dashboard.salesCount}</Text>
-                  <Text style={styles.secondaryLine}>Low stock: {dashboard.lowStockCount}</Text>
                   <Text style={styles.secondaryLine}>Active products: {dashboard.activeProducts}</Text>
                 </View>
               </>
             ) : (
               <View style={styles.secondaryMetrics}>
                 <Text style={styles.secondaryLine}>Sales: {dashboard.salesCount}</Text>
-                <Text style={styles.secondaryLine}>Low stock: {dashboard.lowStockCount}</Text>
                 <Text style={styles.secondaryLine}>Active products: {dashboard.activeProducts}</Text>
                 <Text style={styles.operationalHint}>
                   Operational view for your assigned role
@@ -343,6 +384,34 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontStyle: "italic",
   },
+  stockAlert: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#F59E0B",
+    backgroundColor: "#FFFBEB",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  stockAlertText: { flex: 1, gap: 1 },
+  stockAlertTitle: { color: "#92400E", fontSize: 13, fontWeight: "800" },
+  stockAlertMessage: { color: "#B45309", fontSize: 12 },
+  stockAlertAction: { color: "#92400E", fontSize: 13, fontWeight: "800" },
+  shortcutRow: { flexDirection: "row", gap: 8 },
+  shortcutButton: {
+    flex: 1,
+    minHeight: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#99F6E4",
+    backgroundColor: "#F0FDFA",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+  },
+  shortcutText: { color: "#0F766E", fontSize: 12, fontWeight: "700" },
   actions: {
     gap: 12,
   },

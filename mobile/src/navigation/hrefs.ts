@@ -16,6 +16,10 @@ export const passwordSettingsHref = "/(app)/settings/password" as Href;
 export const productsHref = "/(app)/products" as Href;
 export const productCreateHref = "/(app)/products/create" as Href;
 export const inventoryHref = "/(app)/inventory" as Href;
+export const inventoryLowStockHref = {
+  pathname: "/(app)/inventory",
+  params: { filter: "lowStock" },
+} as unknown as Href;
 export const salesHref = "/(app)/sales" as Href;
 export const saleNewHref = "/(app)/sales/new" as Href;
 export const customersHref = "/(app)/customers" as Href;
