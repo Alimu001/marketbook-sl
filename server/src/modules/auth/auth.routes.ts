@@ -8,14 +8,30 @@ import {
   changePasswordSchema,
 } from "@marketbook/shared/validation";
 import { authenticate } from "../../middleware/auth.js";
+import { authRateLimiter } from "../../middleware/authRateLimit.js";
 import { validate } from "../../middleware/validate.js";
 import * as authController from "./auth.controller.js";
 
 export const authRouter = Router();
 
-authRouter.post("/register", validate(registerSchema), authController.register);
-authRouter.post("/login", validate(loginSchema), authController.login);
-authRouter.post("/refresh", validate(refreshSchema), authController.refresh);
+authRouter.post(
+  "/register",
+  authRateLimiter,
+  validate(registerSchema),
+  authController.register,
+);
+authRouter.post(
+  "/login",
+  authRateLimiter,
+  validate(loginSchema),
+  authController.login,
+);
+authRouter.post(
+  "/refresh",
+  authRateLimiter,
+  validate(refreshSchema),
+  authController.refresh,
+);
 authRouter.post("/logout", validate(logoutSchema), authController.logout);
 authRouter.get("/me", authenticate, authController.me);
 authRouter.patch(

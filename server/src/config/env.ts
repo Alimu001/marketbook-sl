@@ -16,6 +16,22 @@ function parsePort(value: string): number {
   return port;
 }
 
+function parsePositiveInteger(name: string, value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid ${name} value: ${value}`);
+  }
+  return parsed;
+}
+
+function parseNonNegativeInteger(name: string, value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`Invalid ${name} value: ${value}`);
+  }
+  return parsed;
+}
+
 const nodeEnv = process.env.NODE_ENV ?? "development";
 
 if (!["development", "test", "production"].includes(nodeEnv)) {
@@ -31,4 +47,17 @@ export const env = {
   JWT_ACCESS_EXPIRES_IN: requireEnv("JWT_ACCESS_EXPIRES_IN"),
   JWT_REFRESH_EXPIRES_IN: requireEnv("JWT_REFRESH_EXPIRES_IN"),
   CORS_ORIGIN: requireEnv("CORS_ORIGIN"),
+  JSON_BODY_LIMIT: process.env.JSON_BODY_LIMIT ?? "100kb",
+  AUTH_RATE_LIMIT_WINDOW_MS: parsePositiveInteger(
+    "AUTH_RATE_LIMIT_WINDOW_MS",
+    process.env.AUTH_RATE_LIMIT_WINDOW_MS ?? "900000",
+  ),
+  AUTH_RATE_LIMIT_MAX: parsePositiveInteger(
+    "AUTH_RATE_LIMIT_MAX",
+    process.env.AUTH_RATE_LIMIT_MAX ?? "10",
+  ),
+  TRUST_PROXY_HOPS: parseNonNegativeInteger(
+    "TRUST_PROXY_HOPS",
+    process.env.TRUST_PROXY_HOPS ?? "0",
+  ),
 } as const;
