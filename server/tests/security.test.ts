@@ -15,6 +15,46 @@ describe("HTTP security controls", () => {
     expect(response.headers["content-security-policy"]).toBeDefined();
   });
 
+  it("adds a traceable request ID and accepts only safe supplied IDs", async () => {
+    const app = createApp();
+    const supplied = "mobile-request_123";
+    const accepted = await request(app)
+      .get("/health")
+      .set("X-Request-Id", supplied);
+    const rejected = await request(app)
+      .get("/health")
+      .set("X-Request-Id", "unsafe value");
+
+    expect(accepted.headers["x-request-id"]).toBe(supplied);
+    expect(rejected.headers["x-request-id"]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+  });
+
+  it("reports readiness when the database check succeeds", async () => {
+    const response = await request(
+      createApp({ readinessCheck: async () => undefined }),
+    ).get("/ready");
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("ready");
+  });
+
+  it("reports unavailable without leaking database errors", async () => {
+    const secretMarker = "database-password-must-not-leak";
+    const response = await request(
+      createApp({
+        readinessCheck: async () => {
+          throw new Error(secretMarker);
+        },
+      }),
+    ).get("/ready");
+
+    expect(response.status).toBe(503);
+    expect(response.body.status).toBe("unavailable");
+    expect(response.text).not.toContain(secretMarker);
+  });
+
   it("rejects malformed JSON with a safe validation response", async () => {
     const response = await request(createApp())
       .post("/api/v1/auth/login")

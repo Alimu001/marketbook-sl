@@ -32,6 +32,12 @@ function parseNonNegativeInteger(name: string, value: string): number {
   return parsed;
 }
 
+function parseBoolean(name: string, value: string): boolean {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`Invalid ${name} value: ${value}`);
+}
+
 const nodeEnv = process.env.NODE_ENV ?? "development";
 
 if (!["development", "test", "production"].includes(nodeEnv)) {
@@ -59,5 +65,9 @@ export const env = {
   TRUST_PROXY_HOPS: parseNonNegativeInteger(
     "TRUST_PROXY_HOPS",
     process.env.TRUST_PROXY_HOPS ?? "0",
+  ),
+  REQUEST_LOGGING_ENABLED: parseBoolean(
+    "REQUEST_LOGGING_ENABLED",
+    process.env.REQUEST_LOGGING_ENABLED ?? (nodeEnv === "test" ? "false" : "true"),
   ),
 } as const;

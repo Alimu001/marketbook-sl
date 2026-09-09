@@ -9,6 +9,8 @@
 - Malformed and oversized JSON receives a safe response without echoing submitted
   values.
 - Unexpected production errors omit stack traces and request data.
+- Every response includes an `X-Request-Id` for tracing, while request logs exclude
+  headers, query strings, and bodies.
 
 ## Environment settings
 
@@ -39,3 +41,14 @@ in-memory counters.
 7. Run dependency, application-security, and infrastructure reviews before launch.
 8. Monitor repeated authentication failures and HTTP 429 responses without
    recording passwords or tokens.
+
+## Health and deployment probes
+
+`GET /health` confirms that the API process is running. `GET /ready` additionally
+checks PostgreSQL and returns HTTP 503 when the API should not receive traffic.
+Configure the hosting platform's liveness probe to use `/health` and its readiness
+probe to use `/ready`.
+
+The server handles `SIGINT` and `SIGTERM` by stopping new connections, allowing
+active requests to finish, disconnecting Prisma, and then exiting. The hosting
+platform should provide at least 10 seconds of termination grace time.
