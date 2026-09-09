@@ -10,4 +10,5 @@ export {
   canRemoveTeamMembers,
   canViewTeamActivity,
   canViewTeamMembers,
+  canViewFinancialReports,
 } from "./permissions";

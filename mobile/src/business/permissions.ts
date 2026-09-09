@@ -25,3 +25,7 @@ export function canChangeTeamRoles(role?: BusinessRole): boolean {
 export function canRemoveTeamMembers(role?: BusinessRole): boolean {
   return canManageBusiness(role);
 }
+
+export function canViewFinancialReports(role?: BusinessRole): boolean {
+  return canManageBusiness(role);
+}

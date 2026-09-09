@@ -106,6 +106,7 @@ export type {
 export type {
   DailyActivityReport,
   DashboardSummary,
+  OperationalDashboardSummary,
   ExpensesReportResponse,
   InventoryReportResponse,
   PayablesReportResponse,

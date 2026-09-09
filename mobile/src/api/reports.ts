@@ -2,6 +2,7 @@ import { apiRequest } from "./client";
 import { businessScopedPath } from "./businesses";
 import type {
   DashboardSummary,
+  RoleSensitiveDashboardSummary,
   ExpensesReportResponse,
   InventoryReportResponse,
   PayablesReportResponse,
@@ -29,8 +30,8 @@ export function getDashboardSummary(
   accessToken: string,
   businessId: string,
   range: ReportPeriodRange,
-): Promise<DashboardSummary> {
-  return apiRequest<DashboardSummary>(
+): Promise<RoleSensitiveDashboardSummary> {
+  return apiRequest<RoleSensitiveDashboardSummary>(
     `${reportsPath(businessId, "/dashboard")}${buildRangeQuery(range)}`,
     { method: "GET", accessToken },
   );

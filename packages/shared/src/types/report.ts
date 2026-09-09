@@ -3,8 +3,14 @@ export interface ReportPeriod {
   to: string;
 }
 
-export interface DashboardSummary {
+export interface OperationalDashboardSummary {
   period: ReportPeriod;
+  salesCount: number;
+  lowStockCount: number;
+  activeProducts: number;
+}
+
+export interface DashboardSummary extends OperationalDashboardSummary {
   salesRevenue: string;
   costOfGoodsSold: string;
   grossProfit: string;
@@ -14,11 +20,8 @@ export interface DashboardSummary {
   customerReceivables: string;
   customerWalletLiability: string;
   supplierPayables: string;
-  salesCount: number;
   purchaseCount: number;
   expenseCount: number;
-  lowStockCount: number;
-  activeProducts: number;
 }
 
 export interface PaymentMethodBreakdown {

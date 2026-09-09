@@ -1,6 +1,7 @@
 import type {
   DailyActivityReport,
   DashboardSummary,
+  OperationalDashboardSummary,
   ExpensesReportResponse,
   InventoryReportResponse,
   PayablesReportResponse,
@@ -287,6 +288,24 @@ export async function getDashboardSummary(
     salesCount: sales.count,
     purchaseCount: purchases.count,
     expenseCount: expenses.count,
+    lowStockCount: inventory.lowStockCount,
+    activeProducts: inventory.activeProducts,
+  };
+}
+
+export async function getOperationalDashboardSummary(
+  businessId: string,
+  query: DashboardReportQuery,
+): Promise<OperationalDashboardSummary> {
+  const bounds = reportDateRangeToDateTimeBounds(query.from, query.to);
+  const [sales, inventory] = await Promise.all([
+    aggregateSalesRevenue(businessId, bounds),
+    getInventoryCounts(businessId),
+  ]);
+
+  return {
+    period: buildPeriod(query.from, query.to),
+    salesCount: sales.count,
     lowStockCount: inventory.lowStockCount,
     activeProducts: inventory.activeProducts,
   };

@@ -9,7 +9,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/auth";
-import { canManageBusiness, canViewTeamMembers, useBusiness } from "@/business";
+import {
+  canManageBusiness,
+  canViewFinancialReports,
+  canViewTeamMembers,
+  useBusiness,
+} from "@/business";
 import {
   appHref,
   businessMembersHref,
@@ -55,6 +60,9 @@ export function AppSidePanel() {
   const currentRole = currentBusiness?.role;
   const [servicesOpen, setServicesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const visibleLinks = links.filter(
+    ([label]) => label !== "Reports" || canViewFinancialReports(currentRole),
+  );
 
   const navigate = (
     href:
@@ -129,7 +137,7 @@ export function AppSidePanel() {
             <Text style={styles.userName}>{user?.name || user?.email}</Text>
 
             <View style={styles.serviceGrid}>
-              {links.map(([label, href]) => (
+              {visibleLinks.map(([label, href]) => (
                 <Pressable
                   key={label}
                   style={styles.serviceLink}

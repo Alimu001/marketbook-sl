@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { canViewFinancialReports, useBusiness } from "@/business";
 import {
   customersHref,
   debtsHref,
@@ -33,6 +34,12 @@ const SERVICES = [
 
 export default function ServicesScreen() {
   const router = useRouter();
+  const { currentBusiness } = useBusiness();
+  const visibleServices = SERVICES.filter(
+    (service) =>
+      service.label !== "Reports" ||
+      canViewFinancialReports(currentBusiness?.role),
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -42,7 +49,7 @@ export default function ServicesScreen() {
         <Text style={styles.subtitle}>Choose what you want to manage.</Text>
 
         <View style={styles.grid}>
-          {SERVICES.map((service) => (
+          {visibleServices.map((service) => (
             <Pressable
               key={service.label}
               accessibilityRole="button"

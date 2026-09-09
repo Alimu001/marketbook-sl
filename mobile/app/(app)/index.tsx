@@ -14,12 +14,12 @@ import { useOffline } from "@/offline/OfflineProvider";
 import { getDashboardSummary } from "@/offline/repositories/reports.repository";
 import { ApiError } from "@/api/errors";
 import { getUserFacingErrorMessage, useAuth } from "@/auth";
-import { formatBusinessRole, useBusiness } from "@/business";
+import { canViewFinancialReports, formatBusinessRole, useBusiness } from "@/business";
 import { FormButton, FormMessage } from "@/components/AuthScreen";
 import { ReportPeriodSelector } from "@/components/ReportPeriodSelector";
 import {
   getTodayRange,
-  type DashboardSummary,
+  type RoleSensitiveDashboardSummary,
   type ReportPeriodPreset,
   type ReportPeriodRange,
 } from "@/reports";
@@ -47,7 +47,8 @@ export default function AppHomeScreen() {
   const { networkStatus, getScope, isOfflineData } = useOffline();
   const [preset, setPreset] = useState<ReportPeriodPreset>("today");
   const [range, setRange] = useState<ReportPeriodRange>(getTodayRange());
-  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
+  const [dashboard, setDashboard] =
+    useState<RoleSensitiveDashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
@@ -79,6 +80,7 @@ export default function AppHomeScreen() {
           scope,
           networkStatus,
           range,
+          currentBusiness.role,
         );
 
         setDashboard(result.data);
@@ -187,32 +189,46 @@ export default function AppHomeScreen() {
           <ActivityIndicator size="large" color="#0F766E" style={styles.loader} />
         ) : dashboard ? (
           <>
-            <View style={styles.metricGrid}>
-              <MetricCard
-                label="Revenue"
-                value={formatMoneyDisplay(dashboard.salesRevenue)}
-              />
-              <MetricCard
-                label="Gross profit"
-                value={formatMoneyDisplay(dashboard.grossProfit)}
-              />
-              <MetricCard
-                label="Expenses"
-                value={formatMoneyDisplay(dashboard.operatingExpenses)}
-              />
-              <MetricCard
-                label="Net profit"
-                value={formatMoneyDisplay(dashboard.estimatedNetOperatingProfit)}
-              />
-            </View>
-
-            <View style={styles.secondaryMetrics}>
-              <Text style={styles.secondaryLine}>Receivables: {formatMoneyDisplay(dashboard.customerReceivables)}</Text>
-              <Text style={styles.secondaryLine}>Payables: {formatMoneyDisplay(dashboard.supplierPayables)}</Text>
-              <Text style={styles.secondaryLine}>Low stock: {dashboard.lowStockCount}</Text>
-              <Text style={styles.secondaryLine}>Sales: {dashboard.salesCount}</Text>
-              <Text style={styles.secondaryLine}>Purchases: {formatMoneyDisplay(dashboard.purchaseSpend)}</Text>
-            </View>
+            {canViewFinancialReports(currentBusiness.role) &&
+            "grossProfit" in dashboard ? (
+              <>
+                <View style={styles.metricGrid}>
+                  <MetricCard
+                    label="Revenue"
+                    value={formatMoneyDisplay(dashboard.salesRevenue)}
+                  />
+                  <MetricCard
+                    label="Gross profit"
+                    value={formatMoneyDisplay(dashboard.grossProfit)}
+                  />
+                  <MetricCard
+                    label="Expenses"
+                    value={formatMoneyDisplay(dashboard.operatingExpenses)}
+                  />
+                  <MetricCard
+                    label="Net profit"
+                    value={formatMoneyDisplay(dashboard.estimatedNetOperatingProfit)}
+                  />
+                </View>
+                <View style={styles.secondaryMetrics}>
+                  <Text style={styles.secondaryLine}>Receivables: {formatMoneyDisplay(dashboard.customerReceivables)}</Text>
+                  <Text style={styles.secondaryLine}>Payables: {formatMoneyDisplay(dashboard.supplierPayables)}</Text>
+                  <Text style={styles.secondaryLine}>Purchases: {formatMoneyDisplay(dashboard.purchaseSpend)}</Text>
+                  <Text style={styles.secondaryLine}>Sales: {dashboard.salesCount}</Text>
+                  <Text style={styles.secondaryLine}>Low stock: {dashboard.lowStockCount}</Text>
+                  <Text style={styles.secondaryLine}>Active products: {dashboard.activeProducts}</Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.secondaryMetrics}>
+                <Text style={styles.secondaryLine}>Sales: {dashboard.salesCount}</Text>
+                <Text style={styles.secondaryLine}>Low stock: {dashboard.lowStockCount}</Text>
+                <Text style={styles.secondaryLine}>Active products: {dashboard.activeProducts}</Text>
+                <Text style={styles.operationalHint}>
+                  Operational view for your assigned role
+                </Text>
+              </View>
+            )}
           </>
         ) : null}
 
@@ -319,6 +335,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#334155",
     fontWeight: "600",
+  },
+  operationalHint: {
+    width: "100%",
+    marginTop: 3,
+    fontSize: 11,
+    color: "#64748B",
+    fontStyle: "italic",
   },
   actions: {
     gap: 12,

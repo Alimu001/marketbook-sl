@@ -8,6 +8,8 @@ export {
 } from "./period";
 export type {
   DashboardSummary,
+  OperationalDashboardSummary,
+  RoleSensitiveDashboardSummary,
   ExpensesReportResponse,
   InventoryReportResponse,
   PayablesReportResponse,

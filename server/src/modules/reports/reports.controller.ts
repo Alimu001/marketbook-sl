@@ -28,10 +28,14 @@ export async function getDashboard(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const summary = await reportsService.getDashboardSummary(
-      getBusinessId(req),
-      req.validatedQuery as DashboardReportQuery,
-    );
+    const query = req.validatedQuery as DashboardReportQuery;
+    const summary =
+      req.business?.role === "owner" || req.business?.role === "admin"
+        ? await reportsService.getDashboardSummary(getBusinessId(req), query)
+        : await reportsService.getOperationalDashboardSummary(
+            getBusinessId(req),
+            query,
+          );
     res.status(200).json({ data: summary });
   } catch (error) {
     next(error);

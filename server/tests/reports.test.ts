@@ -1094,7 +1094,7 @@ describe("Reports API", () => {
   });
 
   describe("Authorization across roles", () => {
-    it("cashier can view dashboard", async () => {
+    it("cashier receives an operational dashboard without financial figures", async () => {
       const { businessId } = await setupOwnerBusiness(app, "role-cash");
       const cashier = await createMemberUser(app, "cashier");
       await addMemberDirect(businessId, cashier, "cashier");
@@ -1105,6 +1105,45 @@ describe("Reports API", () => {
         .set(authHeader(cashier.accessToken));
 
       expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(
+        expect.objectContaining({
+          salesCount: expect.any(Number),
+          lowStockCount: expect.any(Number),
+          activeProducts: expect.any(Number),
+        }),
+      );
+      expect(response.body.data).not.toHaveProperty("salesRevenue");
+      expect(response.body.data).not.toHaveProperty("grossProfit");
+      expect(response.body.data).not.toHaveProperty("operatingExpenses");
+      expect(response.body.data).not.toHaveProperty("supplierPayables");
+    });
+
+    it("staff receives an operational dashboard without financial figures", async () => {
+      const { businessId } = await setupOwnerBusiness(app, "role-staff-dashboard");
+      const staff = await createMemberUser(app, "staff-dashboard");
+      await addMemberDirect(businessId, staff, "staff");
+      const today = todayYmd();
+
+      const response = await request(app)
+        .get(`${reportsPath(businessId)}/dashboard?from=${today}&to=${today}`)
+        .set(authHeader(staff.accessToken));
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).not.toHaveProperty("salesRevenue");
+      expect(response.body.data).not.toHaveProperty("grossProfit");
+    });
+
+    it("cashier cannot access detailed financial reports", async () => {
+      const { businessId } = await setupOwnerBusiness(app, "role-cash-reports");
+      const cashier = await createMemberUser(app, "cashier-reports");
+      await addMemberDirect(businessId, cashier, "cashier");
+      const today = todayYmd();
+
+      const response = await request(app)
+        .get(`${reportsPath(businessId)}/sales?from=${today}&to=${today}`)
+        .set(authHeader(cashier.accessToken));
+
+      expect(response.status).toBe(403);
     });
   });
 });

@@ -1,6 +1,7 @@
 import { ApiError } from "@/api/errors";
 import { getDashboardSummary as apiGetDashboardSummary } from "@/api/reports";
-import type { DashboardSummary, ReportPeriodRange } from "@/reports";
+import type { BusinessRole } from "@/api/businesses";
+import type { ReportPeriodRange, RoleSensitiveDashboardSummary } from "@/reports";
 import {
   listCacheRecords,
   upsertCacheRecord,
@@ -8,8 +9,11 @@ import {
 import { isOnlineStatus } from "../network";
 import type { NetworkStatus, SyncScope } from "../types";
 
-function dashboardCacheKey(range: ReportPeriodRange): string {
-  return `${range.from}:${range.to}`;
+function dashboardCacheKey(
+  range: ReportPeriodRange,
+  role: BusinessRole,
+): string {
+  return `${role}:${range.from}:${range.to}`;
 }
 
 function isNetworkError(error: unknown): boolean {
@@ -19,14 +23,15 @@ function isNetworkError(error: unknown): boolean {
 async function getCachedDashboard(
   scope: SyncScope,
   range: ReportPeriodRange,
-): Promise<DashboardSummary | null> {
-  const records = await listCacheRecords<DashboardSummary>(
+  role: BusinessRole,
+): Promise<RoleSensitiveDashboardSummary | null> {
+  const records = await listCacheRecords<RoleSensitiveDashboardSummary>(
     scope.userId,
     scope.businessId,
     "dashboard",
   );
 
-  const cacheKey = dashboardCacheKey(range);
+  const cacheKey = dashboardCacheKey(range, role);
 
   const record = records.find(
     (entry) => entry.serverId === cacheKey,
@@ -39,8 +44,9 @@ export async function getDashboardSummary(
   scope: SyncScope,
   networkStatus: NetworkStatus,
   range: ReportPeriodRange,
+  role: BusinessRole,
 ): Promise<{
-  data: DashboardSummary;
+  data: RoleSensitiveDashboardSummary;
   fromCache: boolean;
 }> {
   if (isOnlineStatus(networkStatus)) {
@@ -55,7 +61,7 @@ export async function getDashboardSummary(
         userId: scope.userId,
         businessId: scope.businessId,
         entityType: "dashboard",
-        serverId: dashboardCacheKey(range),
+        serverId: dashboardCacheKey(range, role),
         data: summary,
       });
 
@@ -70,7 +76,7 @@ export async function getDashboardSummary(
     }
   }
 
-  const cached = await getCachedDashboard(scope, range);
+  const cached = await getCachedDashboard(scope, range, role);
 
   if (cached) {
     return {
