@@ -37,6 +37,9 @@ export default function InventoryHistoryScreen() {
 
   const hasMore = items.length < total;
 
+  const performedByLabel = (item: InventoryTransaction): string =>
+    item.performedBy.name?.trim() || item.performedBy.email;
+
   const loadHistory = useCallback(
     async (pageToLoad: number, replace: boolean) => {
       if (!accessToken || !currentBusiness || !productId) {
@@ -98,10 +101,12 @@ export default function InventoryHistoryScreen() {
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
               <View style={styles.card}>
-                <Text style={styles.type}>{transactionTypeLabel(item.type)}</Text>
-                <Text style={styles.change}>
-                  {formatSignedQuantityChange(item.quantityChange)}
-                </Text>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.type}>{transactionTypeLabel(item.type)}</Text>
+                  <Text style={styles.change}>
+                    {formatSignedQuantityChange(item.quantityChange)}
+                  </Text>
+                </View>
                 <Text style={styles.flow}>
                   {formatQuantityDisplay(item.quantityBefore)} →{" "}
                   {formatQuantityDisplay(item.quantityAfter)}
@@ -109,11 +114,26 @@ export default function InventoryHistoryScreen() {
                 {item.reason ? (
                   <Text style={styles.reason}>Reason: {item.reason}</Text>
                 ) : null}
+                {item.notes ? (
+                  <Text style={styles.notes}>Notes: {item.notes}</Text>
+                ) : null}
+                <Text style={styles.performedBy}>
+                  Recorded by: {performedByLabel(item)}
+                </Text>
                 <Text style={styles.date}>
                   {formatDateDisplay(item.createdAt)}
                 </Text>
               </View>
             )}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyTitle}>No stock activity yet</Text>
+                <Text style={styles.emptyText}>
+                  Opening stock and later adjustments will appear here with the
+                  team member who recorded them.
+                </Text>
+              </View>
+            }
             onEndReached={() => {
               if (!isLoadingMore && hasMore) {
                 void loadHistory(page + 1, false);
@@ -154,8 +174,25 @@ const styles = StyleSheet.create({
   },
   type: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
   change: { fontSize: 15, fontWeight: "600", color: "#0F766E" },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   flow: { fontSize: 14, color: "#334155" },
   reason: { fontSize: 14, color: "#64748B" },
+  notes: { fontSize: 14, color: "#64748B", fontStyle: "italic" },
+  performedBy: { fontSize: 13, fontWeight: "600", color: "#475569" },
   date: { fontSize: 13, color: "#94A3B8" },
+  emptyState: { alignItems: "center", paddingVertical: 48, gap: 8 },
+  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  emptyText: {
+    maxWidth: 320,
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#64748B",
+    textAlign: "center",
+  },
   footerLoader: { paddingVertical: 16 },
 });
