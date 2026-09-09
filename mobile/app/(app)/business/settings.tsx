@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, getUserFacingErrorMessage } from "@/api/errors";
 import { getBusiness, updateBusiness } from "@/api/businesses";
 import { useAuth } from "@/auth";
-import { useBusiness } from "@/business";
+import { canManageBusiness, useBusiness } from "@/business";
 import {
   AuthScreen,
   FormButton,
@@ -52,8 +52,7 @@ export default function BusinessSettingsScreen() {
   }, [logout, router]);
 
   const businessId = currentBusiness?.id;
-  const canEdit =
-    currentBusiness?.role === "owner" || currentBusiness?.role === "admin";
+  const canEdit = canManageBusiness(currentBusiness?.role);
 
   const loadProfile = useCallback(async () => {
     if (!accessToken || !businessId) {

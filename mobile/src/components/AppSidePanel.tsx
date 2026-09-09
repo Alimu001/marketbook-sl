@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/auth";
-import { useBusiness } from "@/business";
+import { canManageBusiness, canViewTeamMembers, useBusiness } from "@/business";
 import {
   appHref,
   businessMembersHref,
@@ -52,6 +52,7 @@ export function AppSidePanel() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { currentBusiness, businesses } = useBusiness();
+  const currentRole = currentBusiness?.role;
   const [servicesOpen, setServicesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -181,21 +182,21 @@ export function AppSidePanel() {
               <Pressable style={styles.link} onPress={() => navigate(passwordSettingsHref)}>
                 <Text style={styles.linkText}>Change Password</Text>
               </Pressable>
-              {currentBusiness ? (
-                <>
+              {currentBusiness && canViewTeamMembers(currentRole) ? (
                   <Pressable
                     style={styles.link}
                     onPress={() => navigate(businessMembersHref)}
                   >
                     <Text style={styles.linkText}>Team Members</Text>
                   </Pressable>
+              ) : null}
+              {currentBusiness && canManageBusiness(currentRole) ? (
                   <Pressable
                     style={styles.link}
                     onPress={() => navigate(businessSettingsHref)}
                   >
                     <Text style={styles.linkText}>Business Settings</Text>
                   </Pressable>
-                </>
               ) : null}
               {businesses.some((business) => business.role === "owner") &&
               businesses.length > 1 ? (

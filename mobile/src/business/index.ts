@@ -3,3 +3,11 @@ export {
   formatBusinessRole,
   useBusiness,
 } from "./BusinessContext";
+export {
+  canChangeTeamRoles,
+  canEnrollTeamMembers,
+  canManageBusiness,
+  canRemoveTeamMembers,
+  canViewTeamActivity,
+  canViewTeamMembers,
+} from "./permissions";

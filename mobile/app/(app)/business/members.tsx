@@ -19,7 +19,14 @@ import {
 } from "@/api/businesses";
 import { ApiError, getUserFacingErrorMessage } from "@/api/errors";
 import { useAuth } from "@/auth";
-import { formatBusinessRole, useBusiness } from "@/business";
+import {
+  canChangeTeamRoles,
+  canEnrollTeamMembers,
+  canRemoveTeamMembers,
+  canViewTeamActivity,
+  formatBusinessRole,
+  useBusiness,
+} from "@/business";
 import { FormButton, FormMessage } from "@/components/AuthScreen";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
@@ -147,17 +154,19 @@ export default function BusinessMembersScreen() {
 
         <FormMessage message={message?.text} type={message?.type} />
 
-        {actingRole === "owner" ? (
+        {canEnrollTeamMembers(actingRole) ? (
           <View style={styles.topActions}>
             <FormButton
               label="Enroll Team Member"
               onPress={() => router.push(businessMemberEnrollHref)}
             />
-            <FormButton
-              label="View Team Activity"
-              variant="secondary"
-              onPress={() => router.push(businessActivitiesHref)}
-            />
+            {canViewTeamActivity(actingRole) ? (
+              <FormButton
+                label="View Team Activity"
+                variant="secondary"
+                onPress={() => router.push(businessActivitiesHref)}
+              />
+            ) : null}
           </View>
         ) : null}
 
@@ -178,9 +187,10 @@ export default function BusinessMembersScreen() {
             renderItem={({ item }) => {
               const isOwner = item.role === "owner";
               const isSelf = item.userId === user?.id;
-              const canChangeRole = actingRole === "owner" && !isOwner && !isSelf;
+              const canChangeRole =
+                canChangeTeamRoles(actingRole) && !isOwner && !isSelf;
               const canRemove =
-                (actingRole === "owner" || actingRole === "admin") &&
+                canRemoveTeamMembers(actingRole) &&
                 !isOwner &&
                 !isSelf;
 
