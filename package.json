@@ -12,6 +12,10 @@
     "db:migrate": "pnpm --filter server db:migrate",
     "db:seed": "pnpm --filter server db:seed",
     "db:studio": "pnpm --filter server db:studio",
+    "db:backup": "node scripts/database-backup.mjs",
+    "db:backup:check": "node scripts/database-backup.mjs --check",
+    "db:backup:verify": "node scripts/database-backup-verify.mjs",
+    "db:migrate:deploy": "pnpm --filter server db:migrate:deploy",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
     "test": "pnpm --filter server test"
