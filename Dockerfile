@@ -27,6 +27,9 @@ RUN pnpm install --prod --frozen-lockfile --filter server...
 
 FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=production-dependencies /app/server/node_modules ./server/node_modules
