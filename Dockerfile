@@ -1,4 +1,10 @@
-FROM node:24-bookworm-slim AS base
+FROM node:24-bookworm-slim AS system
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM system AS base
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -25,11 +31,8 @@ COPY server/package.json server/package.json
 COPY packages/shared/package.json packages/shared/package.json
 RUN pnpm install --prod --frozen-lockfile --filter server...
 
-FROM node:24-bookworm-slim AS runtime
+FROM system AS runtime
 ENV NODE_ENV=production
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates openssl \
-    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=production-dependencies /app/server/node_modules ./server/node_modules
