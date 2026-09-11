@@ -38,6 +38,13 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ecc13291-6614-48bb-bbdc-ea2011032920"
+      }
+    },
+    "owner": "alimtech"
   }
 }
