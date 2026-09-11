@@ -240,7 +240,11 @@ const styles = StyleSheet.create({
     color: "#047857",
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     backgroundColor: "rgba(248, 250, 252, 0.7)",
     alignItems: "center",
     justifyContent: "center",
