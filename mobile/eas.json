@@ -3,7 +3,8 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_APP_ENV": "preview"
+        "EXPO_PUBLIC_APP_ENV": "preview",
+        "EXPO_PUBLIC_API_URL": "https://marketbook-sl-production.up.railway.app/api/v1"
       },
       "android": {
         "buildType": "apk"
@@ -11,7 +12,8 @@
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_APP_ENV": "production"
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://marketbook-sl-production.up.railway.app/api/v1"
       },
       "android": {
         "buildType": "app-bundle"

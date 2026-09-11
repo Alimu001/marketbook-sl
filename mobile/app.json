@@ -28,6 +28,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.marketbooksl.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F8FAFC"
