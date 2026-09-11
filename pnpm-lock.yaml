@@ -130,6 +130,9 @@ importers:
       pg:
         specifier: ^8.22.0
         version: 8.23.0
+      prisma:
+        specifier: ^7.9.1
+        version: 7.9.1(@types/react@19.1.17)(react-dom@19.2.8(react@19.1.0))(react@19.1.0)(typescript@7.0.2)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -161,9 +164,6 @@ importers:
       '@types/supertest':
         specifier: ^6.0.3
         version: 6.0.3
-      prisma:
-        specifier: ^7.9.1
-        version: 7.9.1(@types/react@19.1.17)(react-dom@19.2.8(react@19.1.0))(react@19.1.0)(typescript@7.0.2)
       supertest:
         specifier: ^7.2.2
         version: 7.2.2

@@ -41,6 +41,8 @@ COPY --from=production-dependencies /app/packages/shared/package.json ./packages
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/server/dist ./server/dist
 COPY server/package.json ./server/package.json
+COPY server/prisma ./server/prisma
+COPY server/prisma.config.ts ./server/prisma.config.ts
 WORKDIR /app/server
 USER node
 EXPOSE 3000
