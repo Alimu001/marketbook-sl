@@ -7,6 +7,7 @@ import {
 import { requireBusinessRole } from "../../middleware/businessAuth.js";
 import { validate, validateQuery } from "../../middleware/validate.js";
 import * as productController from "./product.controller.js";
+import { inventoryProductRouter } from "../inventory/inventory.routes.js";
 
 export const productsRouter = Router({ mergeParams: true });
 
@@ -24,6 +25,8 @@ productsRouter.get(
 );
 
 productsRouter.get("/:productId", productController.getProduct);
+
+productsRouter.use("/:productId/inventory", inventoryProductRouter);
 
 productsRouter.patch(
   "/:productId",

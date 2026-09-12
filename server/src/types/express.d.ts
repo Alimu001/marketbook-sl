@@ -11,6 +11,7 @@ declare global {
     }
 
     interface Request {
+      requestId?: string;
       auth?: AuthContext;
       business?: BusinessContext;
       validatedQuery?: unknown;

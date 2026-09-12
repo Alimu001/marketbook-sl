@@ -1,0 +1,1 @@
+ALTER TYPE "ClientMutationEntityType" ADD VALUE IF NOT EXISTS 'SALE';

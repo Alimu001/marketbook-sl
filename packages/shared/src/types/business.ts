@@ -10,6 +10,10 @@ export interface BusinessSummary {
 export interface BusinessDetails {
   id: string;
   name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  receiptFooter: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,4 +35,15 @@ export interface BusinessMemberSummary {
   email: string;
   role: BusinessRole;
   joinedAt: string;
+}
+
+export interface BusinessActivitySummary {
+  id: string;
+  actorUserId: string;
+  actorName: string | null;
+  actorEmail: string;
+  method: string;
+  path: string;
+  statusCode: number;
+  createdAt: string;
 }

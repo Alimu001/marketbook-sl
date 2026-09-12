@@ -34,6 +34,17 @@ export function mapPrismaError(error: unknown): never {
       );
     }
 
+    if (
+      target.includes("expensecategory") ||
+      target.includes("expensecategory_businessid_name")
+    ) {
+      throw new AppError(
+        409,
+        "An expense category with this name already exists",
+        "DUPLICATE_EXPENSE_CATEGORY",
+      );
+    }
+
     throw new AppError(409, "Duplicate value", "DUPLICATE_VALUE");
   }
 

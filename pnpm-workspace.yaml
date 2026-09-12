@@ -1,0 +1,7 @@
+packages:
+  - mobile
+  - server
+  - packages/*
+
+publicHoistPattern:
+  - '@types/*'

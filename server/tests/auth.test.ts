@@ -233,6 +233,95 @@ describe("Auth API", () => {
     });
   });
 
+  describe("PATCH /api/v1/auth/me", () => {
+    it("updates the authenticated user's safe profile fields", async () => {
+      await registerTestUser();
+      const loginResponse = await request(app).post("/api/v1/auth/login").send({
+        email: testUser.email,
+        password: testUser.password,
+      });
+
+      const response = await request(app)
+        .patch("/api/v1/auth/me")
+        .set("Authorization", `Bearer ${loginResponse.body.data.accessToken}`)
+        .send({ name: "Updated User", email: "UPDATED@AUTH-TEST.LOCAL" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toMatchObject({
+        name: "Updated User",
+        email: "updated@auth-test.local",
+      });
+      expect(response.body.data.passwordHash).toBeUndefined();
+    });
+
+    it("rejects an email already used by another account", async () => {
+      await registerTestUser();
+      const loginResponse = await request(app).post("/api/v1/auth/login").send({
+        email: testUser.email,
+        password: testUser.password,
+      });
+      const otherEmail = `other-${randomUUID()}@auth-test.local`;
+      await request(app).post("/api/v1/auth/register").send({
+        ...testUser,
+        email: otherEmail,
+      });
+
+      const response = await request(app)
+        .patch("/api/v1/auth/me")
+        .set("Authorization", `Bearer ${loginResponse.body.data.accessToken}`)
+        .send({ name: "Updated User", email: otherEmail });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe("EMAIL_EXISTS");
+    });
+
+    it("requires authentication", async () => {
+      const response = await request(app)
+        .patch("/api/v1/auth/me")
+        .send({ name: "Updated User", email: testUser.email });
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe("PATCH /api/v1/auth/password", () => {
+    it("changes the password and clears the temporary-password requirement", async () => {
+      await registerTestUser();
+      const user = await prisma.user.update({
+        where: { email: testUser.email },
+        data: { mustChangePassword: true },
+      });
+      const accessToken = signAccessToken(user.id);
+
+      const response = await request(app)
+        .patch("/api/v1/auth/password")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ currentPassword: testPassword, newPassword: "NewSecurePass2" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.mustChangePassword).toBe(false);
+
+      const loginResponse = await request(app).post("/api/v1/auth/login").send({
+        email: testUser.email,
+        password: "NewSecurePass2",
+      });
+      expect(loginResponse.status).toBe(200);
+    });
+
+    it("rejects an incorrect current password", async () => {
+      await registerTestUser();
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { email: testUser.email },
+      });
+      const response = await request(app)
+        .patch("/api/v1/auth/password")
+        .set("Authorization", `Bearer ${signAccessToken(user.id)}`)
+        .send({ currentPassword: "WrongPass1", newPassword: "NewSecurePass2" });
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe("INVALID_PASSWORD");
+    });
+  });
+
   describe("Protected route auth middleware via GET /api/v1/auth/me", () => {
     it("rejects missing access token", async () => {
       const response = await request(app).get("/api/v1/auth/me");

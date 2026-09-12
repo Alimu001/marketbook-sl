@@ -8,6 +8,7 @@ export type {
 export type {
   BusinessDetails,
   BusinessMemberSummary,
+  BusinessActivitySummary,
   BusinessMembership,
   BusinessSummary,
   CreateBusinessResponse,
@@ -17,3 +18,127 @@ export type {
   PaginatedProductsResponse,
   ProductResponse,
 } from "./product.js";
+
+export type {
+  InventoryBalanceResponse,
+  InventoryListItem,
+  InventoryTransactionResponse,
+  InventoryTransactionType,
+} from "./inventory.js";
+
+export type {
+  CreateSaleResponse,
+  PaymentMethod,
+  PaymentProvider,
+  PaymentSource,
+  SaleCustomerSummary,
+  SaleDetailResponse,
+  SaleItemResponse,
+  SaleListItem,
+  SalePaymentStatus,
+  SaleStatus,
+  SaleUserSummary,
+} from "./sales.js";
+
+export type {
+  SaleReceiptItem,
+  SaleReceiptResponse,
+} from "./receipt.js";
+
+export type {
+  InitiatePaymentResponse,
+  PaymentDetailResponse,
+  PaymentListItem,
+  PaymentProvider as GatewayPaymentProvider,
+  PaymentProvidersResponse,
+  PaymentStatus,
+  PaymentsListResponse,
+  PaymentsReportResponse,
+} from "./payment.js";
+
+export type {
+  BusinessDebtListItem,
+  CustomerDebtSummary,
+  CustomerDetail,
+  CustomerHistoryResponse,
+  CustomerSummary,
+  DebtPaymentResponse,
+  DebtStatus,
+  RecordDebtPaymentResponse,
+} from "./customer.js";
+
+export type {
+  BusinessPayableListItem,
+  CreatePurchaseResponse,
+  PayableStatus,
+  PurchaseDetailResponse,
+  PurchaseItemResponse,
+  PurchaseListItem,
+  PurchasePaymentStatus,
+  PurchaseSupplierSummary,
+  PurchaseUserSummary,
+  RecordSupplierPaymentResponse,
+  SupplierDetail,
+  SupplierHistoryResponse,
+  SupplierPayableSummary,
+  SupplierPaymentResponse,
+  SupplierSummary,
+} from "./supplier.js";
+
+export type {
+  CreateSupplierReturnResponse,
+  PurchaseItemReturnableSummary,
+  PurchaseReturnSummary,
+  SupplierReturnItemResponse,
+  SupplierReturnListItem,
+  SupplierReturnResponse,
+  SupplierReturnUserSummary,
+} from "./supplierReturn.js";
+
+export type {
+  ExpenseCategoryRef,
+  ExpenseCategorySummary,
+  ExpenseDetail,
+  ExpenseListItem,
+  ExpenseUserSummary,
+} from "./expense.js";
+
+export type {
+  DailyActivityReport,
+  DashboardSummary,
+  OperationalDashboardSummary,
+  ExpensesReportResponse,
+  InventoryReportResponse,
+  PayablesReportResponse,
+  PurchasesReportResponse,
+  ReceivablesReportResponse,
+  ReportPeriod,
+  SalesReportResponse,
+  TopProductsReportResponse,
+} from "./report.js";
+
+export type {
+  CreatePurchaseVoidResponse,
+  CreateSaleRefundResponse,
+  CreateSaleVoidResponse,
+  PurchaseVoidResponse,
+  SaleItemRefundableSummary,
+  SaleRefundItemResponse,
+  SaleRefundListItem,
+  SaleRefundResponse,
+  SaleRefundSummaryForSale,
+  SaleRefundUserSummary,
+  SaleReversalSummary,
+  SaleVoidResponse,
+} from "./reversal.js";
+
+export type {
+  BusinessWalletListItem,
+  BusinessWalletsResponse,
+  CustomerWalletResponse,
+  CustomerWalletTransactionResponse,
+  CustomerWalletTransactionType,
+  RefundDestination,
+  WalletHistoryResponse,
+  WalletsReportResponse,
+} from "./wallet.js";

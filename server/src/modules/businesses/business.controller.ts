@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import type { ListBusinessActivitiesQuery } from "@marketbook/shared/validation";
 import { AppError } from "../../middleware/errorHandler.js";
 import { getRouteParam } from "../../lib/routeParams.js";
 import * as businessService from "./business.service.js";
@@ -98,6 +99,46 @@ export async function listMembers(
   }
 }
 
+export async function addMember(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const businessId = req.business?.id;
+    if (!businessId) {
+      throw new AppError(500, "Business context is missing", "INTERNAL_ERROR");
+    }
+    const member = await businessService.addMember(businessId, req.body);
+    res.status(201).json({ data: member });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listActivities(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const businessId = req.business?.id;
+    if (!businessId) {
+      throw new AppError(500, "Business context is missing", "INTERNAL_ERROR");
+    }
+    const result = await businessService.listActivities(
+      businessId,
+      req.validatedQuery as ListBusinessActivitiesQuery,
+    );
+    res.status(200).json({
+      data: result.items,
+      meta: { page: result.page, limit: result.limit, total: result.total },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function updateMemberRole(
   req: Request,
   res: Response,
@@ -138,6 +179,30 @@ export async function removeMember(
     }
 
     await businessService.removeMember(businessId, targetUserId);
+    res.status(200).json({ data: { success: true } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resetMemberPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const businessId = req.business?.id;
+    const actingUserId = req.auth?.userId;
+    const targetUserId = getRouteParam(req.params.userId);
+    if (!businessId || !actingUserId || !targetUserId) {
+      throw new AppError(500, "Business context is missing", "INTERNAL_ERROR");
+    }
+    await businessService.resetMemberPassword(
+      businessId,
+      targetUserId,
+      actingUserId,
+      req.body,
+    );
     res.status(200).json({ data: { success: true } });
   } catch (error) {
     next(error);

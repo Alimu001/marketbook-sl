@@ -1,0 +1,14 @@
+.git
+.github
+**/node_modules
+**/dist
+server/.env
+mobile/.env
+.env
+.env.*.local
+backups
+tmp
+mobile/.expo
+mobile/android
+mobile/ios
+*.log

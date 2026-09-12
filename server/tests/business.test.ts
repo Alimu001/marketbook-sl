@@ -163,6 +163,87 @@ describe("Business API", () => {
       expect(response.body.data.name).toBe("Updated Name");
     });
 
+    it("allows owner to update receipt profile details", async () => {
+      const owner = await createTestUser(app, "profile-owner");
+      const created = await createBusiness(
+        app,
+        owner.accessToken,
+        "Profile Business",
+      );
+      const businessId = created.body.data.business.id;
+
+      const response = await request(app)
+        .patch(`/api/v1/businesses/${businessId}`)
+        .set(authHeader(owner.accessToken))
+        .send({
+          phone: "+232 76 123 456",
+          address: "10 Siaka Stevens Street, Freetown",
+          receiptFooter: "Thank you for shopping with us.",
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toMatchObject({
+        phone: "+232 76 123 456",
+        address: "10 Siaka Stevens Street, Freetown",
+        receiptFooter: "Thank you for shopping with us.",
+      });
+    });
+
+    it("allows blank receipt profile values to clear saved details", async () => {
+      const owner = await createTestUser(app, "profile-clear");
+      const created = await createBusiness(
+        app,
+        owner.accessToken,
+        "Clear Profile Business",
+      );
+      const businessId = created.body.data.business.id;
+
+      await prisma.business.update({
+        where: { id: businessId },
+        data: {
+          phone: "+232 30 000 000",
+          address: "Freetown",
+          receiptFooter: "Come again",
+        },
+      });
+
+      const response = await request(app)
+        .patch(`/api/v1/businesses/${businessId}`)
+        .set(authHeader(owner.accessToken))
+        .send({ phone: "   ", address: "", receiptFooter: "  " });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toMatchObject({
+        phone: null,
+        address: null,
+        receiptFooter: null,
+      });
+    });
+
+    it("rejects receipt profile values beyond their limits", async () => {
+      const owner = await createTestUser(app, "profile-validation");
+      const created = await createBusiness(
+        app,
+        owner.accessToken,
+        "Validation Business",
+      );
+      const businessId = created.body.data.business.id;
+
+      for (const payload of [
+        { phone: "1".repeat(31) },
+        { address: "a".repeat(301) },
+        { receiptFooter: "f".repeat(201) },
+      ]) {
+        const response = await request(app)
+          .patch(`/api/v1/businesses/${businessId}`)
+          .set(authHeader(owner.accessToken))
+          .send(payload);
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.code).toBe("VALIDATION_ERROR");
+      }
+    });
+
     it("allows admin to update business information", async () => {
       const owner = await createTestUser(app, "owner");
       const admin = await createMemberUser(app, "admin");
@@ -262,6 +343,110 @@ describe("Business API", () => {
 
       expect(response.status).toBe(403);
       expect(response.body.error.code).toBe("FORBIDDEN");
+    });
+  });
+
+  describe("POST /api/v1/businesses/:businessId/members", () => {
+    it("allows an owner to enroll a new staff account", async () => {
+      const owner = await createTestUser(app, "add-owner");
+      const created = await createBusiness(app, owner.accessToken, "Add Member Business");
+      const businessId = created.body.data.business.id;
+      const email = "enrolled-staff@biz-test.local";
+
+      const response = await request(app)
+        .post(`/api/v1/businesses/${businessId}/members`)
+        .set(authHeader(owner.accessToken))
+        .send({
+          name: "Enrolled Staff",
+          email: email.toUpperCase(),
+          password: "SecurePass1",
+          role: "staff",
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data).toMatchObject({
+        name: "Enrolled Staff",
+        email,
+        role: "staff",
+      });
+
+      const loginResponse = await request(app)
+        .post("/api/v1/auth/login")
+        .send({ email, password: "SecurePass1" });
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.data.user.mustChangePassword).toBe(true);
+
+      const businessesResponse = await request(app)
+        .get("/api/v1/businesses")
+        .set(authHeader(loginResponse.body.data.accessToken));
+      expect(businessesResponse.status).toBe(200);
+      expect(businessesResponse.body.data).toEqual([
+        expect.objectContaining({ id: businessId, role: "staff" }),
+      ]);
+    });
+
+    it("prevents non-owners from adding members", async () => {
+      const owner = await createTestUser(app, "add-owner-guard");
+      const admin = await createMemberUser(app, "add-admin-guard");
+      const target = await createMemberUser(app, "add-target-guard");
+      const created = await createBusiness(app, owner.accessToken, "Guard Add Business");
+      const businessId = created.body.data.business.id;
+      await addMemberDirect(businessId, admin, "admin");
+
+      const response = await request(app)
+        .post(`/api/v1/businesses/${businessId}/members`)
+        .set(authHeader(admin.accessToken))
+        .send({
+          name: target.name,
+          email: target.email,
+          password: "SecurePass1",
+          role: "staff",
+        });
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe("GET /api/v1/businesses/:businessId/activities", () => {
+    it("allows the owner to see and filter recorded business activity", async () => {
+      const owner = await createTestUser(app, "activity-owner");
+      const created = await createBusiness(app, owner.accessToken, "Activity Business");
+      const businessId = created.body.data.business.id;
+
+      await request(app)
+        .post(`/api/v1/businesses/${businessId}/members`)
+        .set(authHeader(owner.accessToken))
+        .send({
+          name: "Activity Staff",
+          email: "activity-staff@biz-test.local",
+          password: "SecurePass1",
+          role: "staff",
+        });
+
+      const response = await request(app)
+        .get(`/api/v1/businesses/${businessId}/activities?userId=${owner.id}`)
+        .set(authHeader(owner.accessToken));
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data[0]).toMatchObject({
+        actorUserId: owner.id,
+        method: "POST",
+      });
+    });
+
+    it("prevents non-owners from viewing activity", async () => {
+      const owner = await createTestUser(app, "activity-owner-guard");
+      const admin = await createMemberUser(app, "activity-admin-guard");
+      const created = await createBusiness(app, owner.accessToken, "Activity Guard Business");
+      const businessId = created.body.data.business.id;
+      await addMemberDirect(businessId, admin, "admin");
+
+      const response = await request(app)
+        .get(`/api/v1/businesses/${businessId}/activities`)
+        .set(authHeader(admin.accessToken));
+
+      expect(response.status).toBe(403);
     });
   });
 
